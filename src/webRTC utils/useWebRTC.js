@@ -17,6 +17,7 @@ function useWebRTC(ws, senderId, config) {
 	const receiverIdRef = useRef(null);
 	const candidateQueue = useRef([]);
 	const isNegotiating = useRef(false);
+	const callStateRef = useRef(INITIAL_CALL_STATE); // Ref to track callState for effect handlers
 
 	// State
 	const [remoteStream, setRemoteStream] = useState(null);
@@ -25,6 +26,11 @@ function useWebRTC(ws, senderId, config) {
 	const [isAudioMuted, setIsAudioMuted] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
 	const [error, setError] = useState(null);
+
+	// Effect to keep callStateRef updated
+	useEffect(() => {
+		callStateRef.current = callState;
+	}, [callState]);
 
 	// --- Effect for Listener Setup & Cleanup ---
 	useEffect(() => {
@@ -70,8 +76,9 @@ function useWebRTC(ws, senderId, config) {
 
 				switch (message.type) {
 					case 'offer':
-						if (callState !== INITIAL_CALL_STATE) {
-							console.warn(`Received offer in unexpected state: ${callState}. Ignoring.`);
+						// Use ref for state check inside effect handler
+						if (callStateRef.current !== INITIAL_CALL_STATE) {
+							console.warn(`Received offer in unexpected state: ${callStateRef.current}. Ignoring.`);
 							return;
 						}
 						console.log('Received offer from peer:', message.senderId);
@@ -88,8 +95,9 @@ function useWebRTC(ws, senderId, config) {
 						break;
 
 					case 'answer':
-						if (callState !== 'calling') {
-							console.warn(`Received answer in unexpected state: ${callState}. Ignoring.`);
+						// Use ref for state check inside effect handler
+						if (callStateRef.current !== 'calling') {
+							console.warn(`Received answer in unexpected state: ${callStateRef.current}. Ignoring.`);
 							return;
 						}
 						console.log('Received answer from peer:', message.senderId);
@@ -175,13 +183,14 @@ function useWebRTC(ws, senderId, config) {
 			}
 		};
 
+		// hangUp is included in useEffect dependencies, so direct call is safe
 		const handleIceConnectionStateChange = () => {
 			const newState = pc.iceConnectionState;
 			console.log(`ICE Connection State change: ${newState}`);
 			setConnectionState(newState);
 			if (newState === 'connected' || newState === 'completed') {
 				console.log('WebRTC connection established.');
-				if (callState !== 'connected') setCallState('connected'); // Ensure call state reflects connection
+				if (callStateRef.current !== 'connected') setCallState('connected'); // Ensure call state reflects connection (use ref)
 			} else if (newState === 'failed') {
 				console.error('WebRTC connection failed. Attempting ICE restart...');
 				pc.restartIce();
@@ -190,9 +199,13 @@ function useWebRTC(ws, senderId, config) {
 				// No automatic action here per plan, but could add timeout for restart
 			} else if (newState === 'closed') {
 				console.log('WebRTC connection closed.');
-				// Reset state if closed unexpectedly? Or rely on hangUp?
-				// Consider resetting state here if not initiated by hangUp
-				// hangUp(); // Maybe call hangup? Needs careful thought to avoid loops
+				// Reset state if closed unexpectedly and not already idle (use ref here)
+				if (callStateRef.current !== INITIAL_CALL_STATE) {
+					console.warn('Connection closed unexpectedly. Resetting state.');
+					// Call hangUp directly to ensure full cleanup and state reset
+					// Use a check or flag if hangUp might cause issues here, but usually it's safe
+					hangUp(); // Call hangUp directly
+				}
 			}
 		};
 
@@ -257,14 +270,15 @@ function useWebRTC(ws, senderId, config) {
 				peerConnectionRef.current.ontrack = null;
 				peerConnectionRef.current.oniceconnectionstatechange = null;
 				peerConnectionRef.current.onnegotiationneeded = null;
-				// Don't close the connection here necessarily, hangUp should handle that.
-				// If the component unmounts mid-call, hangUp should ideally be called.
-				// If ws/senderId/config change, we might want to close the old connection.
-				// Let's leave closing to hangUp for now.
+
+				// Close the connection and nullify ref on cleanup if dependencies change or component unmounts
+				console.log('Closing PeerConnection in cleanup...');
+				peerConnectionRef.current.close();
+				peerConnectionRef.current = null;
 			}
-			console.log('useWebRTC effect cleanup running...');
+			// Removed duplicate log line
 		};
-	}, [ws, senderId, config]); // Dependencies
+	}, [ws, senderId, config, hangUp]); // Add hangUp dependency
 
 	// --- Action Functions ---
 
@@ -349,9 +363,9 @@ function useWebRTC(ws, senderId, config) {
 			console.error('Error during initiateCall:', e);
 			setError(e);
 			isNegotiating.current = false; // Ensure flag is reset on error
-			// Consider calling hangUp() here for cleanup on failure
+			hangUp(); // Clean up on failure
 		}
-	}, [ws, senderId, config]); // Dependencies might need adjustment based on implementation
+	}, [ws, senderId, callState, hangUp]); // Remove unnecessary config dependency
 
 	const answerCall = useCallback(async (localStream) => {
 		console.log('Answering incoming call...');
@@ -427,8 +441,9 @@ function useWebRTC(ws, senderId, config) {
 		} catch (e) {
 			console.error('Error during answerCall:', e);
 			setError(e);
+			hangUp(); // Clean up on failure
 		}
-	}, [ws, senderId, config]); // Dependencies might need adjustment
+	}, [ws, senderId, callState, hangUp]); // Remove unnecessary config dependency
 
 	const hangUp = useCallback(() => {
 		console.log('Hanging up call...');
