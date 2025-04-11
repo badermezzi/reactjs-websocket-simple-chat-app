@@ -19,6 +19,7 @@ function useWebRTC(ws, senderId, config) {
 	const isNegotiating = useRef(false);
 	const callStateRef = useRef(INITIAL_CALL_STATE); // Ref to track callState for effect handlers
 
+
 	// State
 	const [remoteStream, setRemoteStream] = useState(null);
 	const [connectionState, setConnectionState] = useState(INITIAL_CONNECTION_STATE);
@@ -26,6 +27,259 @@ function useWebRTC(ws, senderId, config) {
 	const [isAudioMuted, setIsAudioMuted] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
 	const [error, setError] = useState(null);
+
+	// --- Action Functions (defined before useEffect that depends on them) ---
+
+	// Define hangUp first as it might be needed by others or useEffect
+	const hangUp = useCallback(() => {
+		console.log('Hanging up call...');
+		if (peerConnectionRef.current) {
+			// Stop all local media tracks
+			if (localStreamRef.current) {
+				localStreamRef.current.getTracks().forEach(track => track.stop());
+				localStreamRef.current = null;
+			}
+			// Close the connection
+			peerConnectionRef.current.close();
+			peerConnectionRef.current = null; // Release the reference
+			console.log('PeerConnection closed.');
+		}
+
+		// Send hangup signal (optional, depends on your signaling protocol)
+		const targetId = receiverIdRef.current;
+		if (targetId && ws && ws.readyState === WebSocket.OPEN) {
+			console.log(`Sending hangup signal to ${targetId}`);
+			ws.send(JSON.stringify({
+				type: 'hangup',
+				senderId: senderId,
+				receiverId: targetId
+			}));
+		}
+
+		// Reset state
+		setRemoteStream(null);
+		setConnectionState(INITIAL_CONNECTION_STATE);
+		setCallState(INITIAL_CALL_STATE);
+		setIsAudioMuted(false);
+		setIsVideoMuted(false);
+		setError(null);
+		candidateQueue.current = [];
+		receiverIdRef.current = null;
+		isNegotiating.current = false;
+
+	}, [ws, senderId]); // Include ws and senderId if used for signaling hangup
+
+	const initiateCall = useCallback(async (receiverId, localStream) => {
+		console.log(`Initiating call to ${receiverId}...`);
+		if (callState !== INITIAL_CALL_STATE) {
+			console.error('Cannot initiate call, already in a call or setup state:', callState);
+			setError(new Error(`Cannot initiate call in state: ${callState}`));
+			return;
+		}
+		// Prevent self-calling
+		if (receiverId === senderId) {
+			console.error('Cannot initiate call to self.');
+			setError(new Error('Cannot call yourself.'));
+			return;
+		}
+
+
+		if (!peerConnectionRef.current) {
+			// Attempt to create PC if not already done (e.g., if useEffect hasn't run yet - less ideal)
+			// This path is less likely now with PC creation in useEffect, but as a safeguard:
+			console.warn('PeerConnection not initialized during initiateCall. Attempting creation.');
+			try {
+				console.log("creating PeerConnection...");
+				peerConnectionRef.current = new RTCPeerConnection(config);
+				setConnectionState(peerConnectionRef.current.iceConnectionState);
+			} catch (e) {
+				console.error('Failed to create PeerConnection during initiateCall:', e);
+				setError(e);
+				return;
+			}
+			// If created here, listeners aren't attached yet - this indicates a potential logic flaw
+			// if initiateCall could realistically be called before useEffect runs.
+			// Assuming useEffect runs first is safer. Let's remove this creation logic here
+			// and rely on the check below.
+			console.error('PeerConnection not initialized.');
+			setError(new Error('PeerConnection not available.'));
+			return;
+
+		}
+		if (!localStream) {
+			console.error('Local stream not provided for initiateCall.');
+			setError(new Error('Local stream is required to initiate a call.'));
+			return;
+		}
+		if (!receiverId) {
+			console.error('Receiver ID not provided for initiateCall.');
+			setError(new Error('Receiver ID is required to initiate a call.'));
+			return;
+		}
+
+		setError(null); // Clear previous errors
+		const pc = peerConnectionRef.current;
+
+		try {
+			// Store refs
+			receiverIdRef.current = receiverId;
+			localStreamRef.current = localStream;
+
+			// Add tracks
+			console.log('Adding local tracks...');
+			localStream.getTracks().forEach(track => {
+				if (!pc.getSenders().find(sender => sender.track === track)) {
+					pc.addTrack(track, localStream);
+					console.log('Added track:', track.kind);
+				} else {
+					console.log('Track already added:', track.kind);
+				}
+			});
+
+			// Update mute states based on initial track state (optional but good)
+			setIsAudioMuted(!localStream.getAudioTracks().some(t => t.enabled));
+			setIsVideoMuted(!localStream.getVideoTracks().some(t => t.enabled));
+
+			// Create Offer (negotiationneeded might fire here too, flag handles it)
+			console.log('Creating offer...');
+			isNegotiating.current = true; // Prevent negotiationneeded collision
+			const offer = await pc.createOffer();
+			if (pc.signalingState !== 'stable') {
+				console.warn('Signaling state not stable after createOffer, aborting initiateCall.');
+				isNegotiating.current = false;
+				return;
+			}
+			await pc.setLocalDescription(offer);
+			console.log('Local description set.');
+			isNegotiating.current = false; // Allow negotiationneeded again
+
+			// Send Offer
+			console.log('Sending offer to remote peer...');
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({
+					type: 'offer',
+					offer: pc.localDescription,
+					senderId: senderId,
+					receiverId: receiverId
+				}));
+				setCallState('calling'); // Update state
+			} else {
+				console.error('WebSocket not open. Cannot send offer.');
+				setError(new Error('WebSocket connection is not open.'));
+				// Consider calling hangUp here
+				hangUp(); // Clean up if WS closed before offer sent
+			}
+		} catch (e) {
+			console.error('Error during initiateCall:', e);
+			setError(e);
+			isNegotiating.current = false; // Ensure flag is reset on error
+			hangUp(); // Clean up on failure
+		}
+	}, [ws, senderId, callState, hangUp, config]); // Added config back temporarily for PC creation check
+
+	const answerCall = useCallback(async (localStream) => {
+		console.log('Answering incoming call...');
+		if (callState !== 'receiving') {
+			console.error('Cannot answer call, not in receiving state:', callState);
+			setError(new Error(`Cannot answer call in state: ${callState}`));
+			return;
+		}
+		if (!peerConnectionRef.current) {
+			console.error('PeerConnection not initialized.');
+			setError(new Error('PeerConnection not available.'));
+			return;
+		}
+		if (!localStream) {
+			console.error('Local stream not provided for answerCall.');
+			setError(new Error('Local stream is required to answer a call.'));
+			return;
+		}
+		if (!receiverIdRef.current) {
+			console.error('Cannot answer call, receiverId (original caller) not set.');
+			setError(new Error('Internal error: Original caller ID not available.'));
+			return;
+		}
+
+		setError(null); // Clear previous errors
+		const pc = peerConnectionRef.current;
+		const targetId = receiverIdRef.current; // The original caller
+
+		try {
+			// Store local stream ref
+			localStreamRef.current = localStream;
+
+			// Add tracks
+			console.log('Adding local tracks for answer...');
+			localStream.getTracks().forEach(track => {
+				if (!pc.getSenders().find(sender => sender.track === track)) {
+					pc.addTrack(track, localStream);
+					console.log('Added track:', track.kind);
+				} else {
+					console.log('Track already added:', track.kind);
+				}
+			});
+
+			// Update mute states
+			setIsAudioMuted(!localStream.getAudioTracks().some(t => t.enabled));
+			setIsVideoMuted(!localStream.getVideoTracks().some(t => t.enabled));
+
+			// Create Answer
+			console.log('Creating answer...');
+			const answer = await pc.createAnswer();
+			console.log('Answer created.');
+			await pc.setLocalDescription(answer);
+			console.log('Local description (answer) set.');
+
+			// Send Answer
+			console.log('Sending answer to remote peer...');
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({
+					type: 'answer',
+					answer: pc.localDescription,
+					senderId: senderId,
+					receiverId: targetId
+				}));
+			} else {
+				console.error('WebSocket not open. Cannot send answer.');
+				setError(new Error('WebSocket connection is not open.'));
+				hangUp(); // Clean up if WS closed before answer sent
+			}
+		} catch (e) {
+			console.error('Error during answerCall:', e);
+			setError(e);
+			hangUp(); // Clean up on failure
+		}
+	}, [ws, senderId, callState, hangUp]);
+
+	const toggleAudioMute = useCallback(() => {
+		if (!localStreamRef.current) {
+			console.warn('Cannot toggle audio mute, local stream not available.');
+			return;
+		}
+		let newMuteState = false;
+		localStreamRef.current.getAudioTracks().forEach(track => {
+			track.enabled = !track.enabled;
+			newMuteState = !track.enabled;
+			console.log(`Audio track ${track.id} enabled: ${track.enabled}`);
+		});
+		setIsAudioMuted(newMuteState);
+		console.log('Audio mute state:', newMuteState);
+	}, []);
+
+	const toggleVideoMute = useCallback(() => {
+		if (!localStreamRef.current) {
+			console.warn('Cannot toggle video mute, local stream not available.');
+			return;
+		}
+		let newMuteState = false;
+		localStreamRef.current.getVideoTracks().forEach(track => {
+			track.enabled = !track.enabled;
+			newMuteState = !track.enabled;
+			console.log(`Video track ${track.id} enabled: ${track.enabled}`);
+		});
+		setIsVideoMuted(newMuteState);
+		console.log('Video mute state:', newMuteState);
+	}, []);
 
 	// Effect to keep callStateRef updated
 	useEffect(() => {
@@ -143,7 +397,17 @@ function useWebRTC(ws, senderId, config) {
 						}
 						break;
 
-					// Add cases for other signaling messages like 'hangup' if needed
+					case 'hangup':
+						console.log('Received hangup signal from peer:', message.senderId);
+						// Check if we are in an active call state and the hangup is from the expected peer
+						if (['calling', 'receiving', 'connected'].includes(callStateRef.current) && message.senderId === receiverIdRef.current) {
+							console.log('Executing hangUp due to remote signal.');
+							hangUp(); // Call the existing hangUp function
+						} else {
+							console.warn(`Received hangup signal in unexpected state (${callStateRef.current}) or from unexpected sender (${message.senderId} vs ${receiverIdRef.current}). Ignoring.`);
+						}
+						break;
+
 					default:
 						console.log('Received unknown message type:', message.type);
 				}
@@ -282,236 +546,9 @@ function useWebRTC(ws, senderId, config) {
 
 	// --- Action Functions ---
 
-	const initiateCall = useCallback(async (receiverId, localStream) => {
-		console.log(`Initiating call to ${receiverId}...`);
-		if (callState !== INITIAL_CALL_STATE) {
-			console.error('Cannot initiate call, already in a call or setup state:', callState);
-			setError(new Error(`Cannot initiate call in state: ${callState}`));
-			return;
-		}
-		if (!peerConnectionRef.current) {
-			console.error('PeerConnection not initialized.');
-			setError(new Error('PeerConnection not available.'));
-			return;
-		}
-		if (!localStream) {
-			console.error('Local stream not provided for initiateCall.');
-			setError(new Error('Local stream is required to initiate a call.'));
-			return;
-		}
-		if (!receiverId) {
-			console.error('Receiver ID not provided for initiateCall.');
-			setError(new Error('Receiver ID is required to initiate a call.'));
-			return;
-		}
+	// Moved the useCallback definitions above the main useEffect
 
-		setError(null); // Clear previous errors
-		const pc = peerConnectionRef.current;
-
-		try {
-			// Store refs
-			receiverIdRef.current = receiverId;
-			localStreamRef.current = localStream;
-
-			// Add tracks
-			console.log('Adding local tracks...');
-			localStream.getTracks().forEach(track => {
-				// Check if track already added - might happen on re-initiation attempts
-				if (!pc.getSenders().find(sender => sender.track === track)) {
-					pc.addTrack(track, localStream);
-					console.log('Added track:', track.kind);
-				} else {
-					console.log('Track already added:', track.kind);
-				}
-			});
-
-			// Update mute states based on initial track state (optional but good)
-			setIsAudioMuted(!localStream.getAudioTracks().some(t => t.enabled));
-			setIsVideoMuted(!localStream.getVideoTracks().some(t => t.enabled));
-
-			// Create Offer (negotiationneeded might fire here too, flag handles it)
-			console.log('Creating offer...');
-			isNegotiating.current = true; // Prevent negotiationneeded collision
-			const offer = await pc.createOffer();
-			// Check signaling state before setting local description
-			if (pc.signalingState !== 'stable') {
-				console.warn('Signaling state not stable after createOffer, aborting initiateCall.');
-				isNegotiating.current = false;
-				return;
-			}
-			await pc.setLocalDescription(offer);
-			console.log('Local description set.');
-			isNegotiating.current = false; // Allow negotiationneeded again
-
-			// Send Offer
-			console.log('Sending offer to remote peer...');
-			if (ws.readyState === WebSocket.OPEN) {
-				ws.send(JSON.stringify({
-					type: 'offer',
-					offer: pc.localDescription, // Send the generated description
-					senderId: senderId,
-					receiverId: receiverId
-				}));
-				setCallState('calling'); // Update state
-			} else {
-				console.error('WebSocket not open. Cannot send offer.');
-				setError(new Error('WebSocket connection is not open.'));
-				// Should we revert state? Maybe hangUp?
-				// For now, just set error.
-			}
-		} catch (e) {
-			console.error('Error during initiateCall:', e);
-			setError(e);
-			isNegotiating.current = false; // Ensure flag is reset on error
-			hangUp(); // Clean up on failure
-		}
-	}, [ws, senderId, callState, hangUp]); // Remove unnecessary config dependency
-
-	const answerCall = useCallback(async (localStream) => {
-		console.log('Answering incoming call...');
-		if (callState !== 'receiving') {
-			console.error('Cannot answer call, not in receiving state:', callState);
-			setError(new Error(`Cannot answer call in state: ${callState}`));
-			return;
-		}
-		if (!peerConnectionRef.current) {
-			console.error('PeerConnection not initialized.');
-			setError(new Error('PeerConnection not available.'));
-			return;
-		}
-		if (!localStream) {
-			console.error('Local stream not provided for answerCall.');
-			setError(new Error('Local stream is required to answer a call.'));
-			return;
-		}
-		if (!receiverIdRef.current) {
-			// This should have been set when the offer was received and processed
-			console.error('Cannot answer call, receiverId (original caller) not set.');
-			setError(new Error('Internal error: Original caller ID not available.'));
-			return;
-		}
-
-		setError(null); // Clear previous errors
-		const pc = peerConnectionRef.current;
-		const targetId = receiverIdRef.current; // The original caller
-
-		try {
-			// Store local stream ref
-			localStreamRef.current = localStream;
-
-			// Add tracks (ensure remote description is set first, which it should be in 'receiving' state)
-			console.log('Adding local tracks for answer...');
-			localStream.getTracks().forEach(track => {
-				if (!pc.getSenders().find(sender => sender.track === track)) {
-					pc.addTrack(track, localStream);
-					console.log('Added track:', track.kind);
-				} else {
-					console.log('Track already added:', track.kind);
-				}
-			});
-
-			// Update mute states
-			setIsAudioMuted(!localStream.getAudioTracks().some(t => t.enabled));
-			setIsVideoMuted(!localStream.getVideoTracks().some(t => t.enabled));
-
-			// Create Answer
-			console.log('Creating answer...');
-			const answer = await pc.createAnswer();
-			console.log('Answer created.');
-			await pc.setLocalDescription(answer);
-			console.log('Local description (answer) set.');
-
-			// Send Answer
-			console.log('Sending answer to remote peer...');
-			if (ws.readyState === WebSocket.OPEN) {
-				ws.send(JSON.stringify({
-					type: 'answer',
-					answer: pc.localDescription,
-					senderId: senderId,
-					receiverId: targetId // Send back to the original caller
-				}));
-				// Note: State update to 'connected' and queue processing happens
-				// when the *caller* receives this answer and sets *their* remote description,
-				// or potentially based on ICE connection state changes.
-				// Let's rely on ICE state change for 'connected' state for the answerer.
-			} else {
-				console.error('WebSocket not open. Cannot send answer.');
-				setError(new Error('WebSocket connection is not open.'));
-			}
-		} catch (e) {
-			console.error('Error during answerCall:', e);
-			setError(e);
-			hangUp(); // Clean up on failure
-		}
-	}, [ws, senderId, callState, hangUp]); // Remove unnecessary config dependency
-
-	const hangUp = useCallback(() => {
-		console.log('Hanging up call...');
-		if (peerConnectionRef.current) {
-			// Stop all local media tracks
-			if (localStreamRef.current) {
-				localStreamRef.current.getTracks().forEach(track => track.stop());
-				localStreamRef.current = null;
-			}
-			// Close the connection
-			peerConnectionRef.current.close();
-			peerConnectionRef.current = null; // Release the reference
-			console.log('PeerConnection closed.');
-		}
-
-		// Send hangup signal (optional, depends on your signaling protocol)
-		const targetId = receiverIdRef.current;
-		if (targetId && ws && ws.readyState === WebSocket.OPEN) {
-			console.log(`Sending hangup signal to ${targetId}`);
-			ws.send(JSON.stringify({
-				type: 'hangup',
-				senderId: senderId,
-				receiverId: targetId
-			}));
-		}
-
-		// Reset state
-		setRemoteStream(null);
-		setConnectionState(INITIAL_CONNECTION_STATE);
-		setCallState(INITIAL_CALL_STATE);
-		setIsAudioMuted(false);
-		setIsVideoMuted(false);
-		setError(null);
-		candidateQueue.current = [];
-		receiverIdRef.current = null;
-		isNegotiating.current = false;
-
-	}, [ws, senderId]); // Include ws and senderId if used for signaling hangup
-
-	const toggleAudioMute = useCallback(() => {
-		if (!localStreamRef.current) {
-			console.warn('Cannot toggle audio mute, local stream not available.');
-			return;
-		}
-		let newMuteState = false;
-		localStreamRef.current.getAudioTracks().forEach(track => {
-			track.enabled = !track.enabled;
-			newMuteState = !track.enabled; // State reflects if it *is* muted
-			console.log(`Audio track ${track.id} enabled: ${track.enabled}`);
-		});
-		setIsAudioMuted(newMuteState);
-		console.log('Audio mute state:', newMuteState);
-	}, []); // No dependencies needed if using ref
-
-	const toggleVideoMute = useCallback(() => {
-		if (!localStreamRef.current) {
-			console.warn('Cannot toggle video mute, local stream not available.');
-			return;
-		}
-		let newMuteState = false;
-		localStreamRef.current.getVideoTracks().forEach(track => {
-			track.enabled = !track.enabled;
-			newMuteState = !track.enabled; // State reflects if it *is* muted
-			console.log(`Video track ${track.id} enabled: ${track.enabled}`);
-		});
-		setIsVideoMuted(newMuteState);
-		console.log('Video mute state:', newMuteState);
-	}, []); // No dependencies needed if using ref
+	// Moved the useCallback definitions above the main useEffect
 
 	// --- Return API ---
 	return {
