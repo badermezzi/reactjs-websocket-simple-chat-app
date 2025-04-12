@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Initial state values
-const INITIAL_CALL_STATE = 'idle'; // idle, calling, receiving, connected
+const INITIAL_CALL_STATE = 'idle'; // idle, calling, receiving, connected,        maybe add // disconnected
 const INITIAL_CONNECTION_STATE = 'new';
 
 /**
@@ -18,7 +18,7 @@ function useWebRTC(ws, senderId, config) {
 	const candidateQueue = useRef([]);
 	const isNegotiating = useRef(false);
 	const callStateRef = useRef(INITIAL_CALL_STATE); // Ref to track callState for effect handlers
-
+	const disconnectTimeoutRef = useRef(null); // Ref to store the disconnect recovery timeout
 
 	// State
 	const [remoteStream, setRemoteStream] = useState(null);
@@ -32,6 +32,11 @@ function useWebRTC(ws, senderId, config) {
 
 	// Define hangUp first as it might be needed by others or useEffect
 	const hangUp = useCallback(() => {
+		// Clear any pending disconnect timeout
+		if (disconnectTimeoutRef.current) {
+			clearTimeout(disconnectTimeoutRef.current);
+			disconnectTimeoutRef.current = null;
+		}
 		console.log('Hanging up call...');
 		if (peerConnectionRef.current) {
 			// Stop all local media tracks
@@ -69,6 +74,155 @@ function useWebRTC(ws, senderId, config) {
 
 	}, [ws, senderId]); // Include ws and senderId if used for signaling hangup
 
+	//////////////////////////////////////////////////
+	// --- PeerConnection Event Listeners ---
+	const handleIceCandidate = useCallback((event) => {
+		if (event.candidate) {
+			console.log('Generated ICE Candidate:', event.candidate);
+			if (ws.readyState === WebSocket.OPEN) {
+				// Send candidate - receiverIdRef should be set by initiateCall or offer handling
+				const targetId = receiverIdRef.current;
+				if (targetId) {
+					ws.send(JSON.stringify({
+						type: 'ice-candidate',
+						candidate: event.candidate,
+						senderId: senderId,
+						receiverId: targetId
+					}));
+				} else {
+					console.warn('Cannot send ICE candidate, receiverId not set.');
+				}
+			} else {
+				console.warn('WebSocket not open. Cannot send ICE candidate.');
+			}
+		}
+	}, [senderId, ws]);
+
+	const handleTrack = (event) => {
+		console.log('Track received:', event.track, 'Stream:', event.streams[0]);
+		if (event.streams && event.streams[0]) {
+			setRemoteStream(event.streams[0]);
+		}
+	};
+
+	// hangUp is included in useEffect dependencies, so direct call is safe
+	const handleIceConnectionStateChange = useCallback((pc) => {
+		const newState = pc.iceConnectionState;
+		console.log(`ICE Connection State change: ${newState}`);
+		setConnectionState(newState);
+		if (newState === 'connected' || newState === 'completed') {
+			console.log('WebRTC connection established.');
+			// Clear disconnect timeout if connection recovers
+			if (disconnectTimeoutRef.current) {
+				clearTimeout(disconnectTimeoutRef.current);
+				disconnectTimeoutRef.current = null;
+				console.log('Cleared disconnect timeout due to recovery.');
+			}
+			if (callStateRef.current !== 'connected') setCallState('connected'); // Ensure call state reflects connection (use ref)
+		} else if (newState === 'failed') {
+			console.error('WebRTC connection failed. Attempting ICE restart...');
+			pc.restartIce();
+		} else if (newState === 'disconnected') {
+			console.warn('WebRTC connection disconnected. Starting recovery timeout...');
+			// Clear any existing timeout before setting a new one
+			if (disconnectTimeoutRef.current) {
+				clearTimeout(disconnectTimeoutRef.current);
+			}
+			disconnectTimeoutRef.current = setTimeout(() => {
+				// Check if still disconnected after timeout
+				if (peerConnectionRef.current?.iceConnectionState === 'disconnected') {
+					console.error('WebRTC connection did not recover after timeout. Hanging up.');
+					hangUp();
+				} else {
+					console.log('Disconnect timeout finished, but state changed. No action needed.');
+				}
+				disconnectTimeoutRef.current = null; // Clear ref after execution
+			}, 5000); // 5-second timeout
+		} else if (newState === 'closed') {
+			console.log('WebRTC connection closed.');
+			// Clear disconnect timeout if connection closes
+			if (disconnectTimeoutRef.current) {
+				clearTimeout(disconnectTimeoutRef.current);
+				disconnectTimeoutRef.current = null;
+				console.log('Cleared disconnect timeout due to connection close.');
+			}
+			// Reset state if closed unexpectedly and not already idle (use ref here)
+			if (callStateRef.current !== INITIAL_CALL_STATE) {
+				console.warn('Connection closed unexpectedly. Resetting state.');
+				// hangUp() will be called below, which also clears the timeout
+				hangUp(); // Call hangUp directly
+			}
+		}
+	}, [hangUp]);
+
+	const handleNegotiationNeeded = useCallback(async (pc) => {
+		if (isNegotiating.current || pc.signalingState !== 'stable') {
+			console.log('Skipping negotiationneeded event:', { negotiating: isNegotiating.current, state: pc.signalingState });
+			return;
+		}
+
+		isNegotiating.current = true;
+		console.log('Negotiation needed, creating new offer...');
+		try {
+			// Ensure receiverIdRef is set (might happen if tracks added before initial call setup)
+			const targetId = receiverIdRef.current;
+			if (!targetId) {
+				console.warn('Negotiation needed, but no receiverId set. Aborting.');
+				isNegotiating.current = false;
+				return;
+			}
+
+			const offer = await pc.createOffer();
+			if (pc.signalingState !== 'stable') {
+				console.log('Signaling state changed during offer creation, aborting negotiation.');
+				isNegotiating.current = false;
+				return;
+			}
+			await pc.setLocalDescription(offer);
+			console.log('New local description set, sending new offer...');
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({
+					type: 'offer', // Re-send offer type
+					offer: pc.localDescription,
+					senderId: senderId,
+					receiverId: targetId
+				}));
+			} else {
+				console.error('WebSocket not open during re-negotiation. Cannot send new offer.');
+				// Set error state?
+			}
+		} catch (e) {
+			console.error('Error during renegotiation:', e);
+			setError(e);
+		} finally {
+			isNegotiating.current = false;
+		}
+	}, [senderId, ws]);
+	//////////////////////////////////////////////////
+
+	const createNewPcWithListeners = useCallback(() => {
+		console.log("will create PeerConnection");
+		try {
+			console.log("creating PeerConnection...");
+			peerConnectionRef.current = new RTCPeerConnection(config);
+			setConnectionState(peerConnectionRef.current.iceConnectionState);
+		} catch (e) {
+			console.error('Failed to create PeerConnection during initiateCall:', e);
+			setError(e);
+			return;
+		}
+		console.log("new PeerConnection was created");
+		console.log("Attach listeners...");
+
+		const pc = peerConnectionRef.current; // Alias for convenience
+
+		// Attach listeners
+		pc.onicecandidate = handleIceCandidate;
+		pc.ontrack = handleTrack;
+		pc.oniceconnectionstatechange = () => handleIceConnectionStateChange(pc);
+		pc.onnegotiationneeded = () => handleNegotiationNeeded(pc);
+	}, [config, handleIceCandidate, handleIceConnectionStateChange, handleNegotiationNeeded]);
+
 	const initiateCall = useCallback(async (receiverId, localStream) => {
 		console.log(`Initiating call to ${receiverId}...`);
 		if (callState !== INITIAL_CALL_STATE) {
@@ -85,27 +239,11 @@ function useWebRTC(ws, senderId, config) {
 
 
 		if (!peerConnectionRef.current) {
-			// Attempt to create PC if not already done (e.g., if useEffect hasn't run yet - less ideal)
-			// This path is less likely now with PC creation in useEffect, but as a safeguard:
-			console.warn('PeerConnection not initialized during initiateCall. Attempting creation.');
-			try {
-				console.log("creating PeerConnection...");
-				peerConnectionRef.current = new RTCPeerConnection(config);
-				setConnectionState(peerConnectionRef.current.iceConnectionState);
-			} catch (e) {
-				console.error('Failed to create PeerConnection during initiateCall:', e);
-				setError(e);
-				return;
-			}
-			// If created here, listeners aren't attached yet - this indicates a potential logic flaw
-			// if initiateCall could realistically be called before useEffect runs.
-			// Assuming useEffect runs first is safer. Let's remove this creation logic here
-			// and rely on the check below.
-			console.error('PeerConnection not initialized.');
-			setError(new Error('PeerConnection not available.'));
-			return;
+
+			createNewPcWithListeners();
 
 		}
+
 		if (!localStream) {
 			console.error('Local stream not provided for initiateCall.');
 			setError(new Error('Local stream is required to initiate a call.'));
@@ -175,7 +313,7 @@ function useWebRTC(ws, senderId, config) {
 			isNegotiating.current = false; // Ensure flag is reset on error
 			hangUp(); // Clean up on failure
 		}
-	}, [ws, senderId, callState, hangUp, config]); // Added config back temporarily for PC creation check
+	}, [ws, senderId, callState, hangUp, createNewPcWithListeners]); // Added config back temporarily for PC creation check
 
 	const answerCall = useCallback(async (localStream) => {
 		console.log('Answering incoming call...');
@@ -184,11 +322,7 @@ function useWebRTC(ws, senderId, config) {
 			setError(new Error(`Cannot answer call in state: ${callState}`));
 			return;
 		}
-		if (!peerConnectionRef.current) {
-			console.error('PeerConnection not initialized.');
-			setError(new Error('PeerConnection not available.'));
-			return;
-		}
+
 		if (!localStream) {
 			console.error('Local stream not provided for answerCall.');
 			setError(new Error('Local stream is required to answer a call.'));
@@ -297,20 +431,6 @@ function useWebRTC(ws, senderId, config) {
 		console.log('useWebRTC effect setup running...');
 		setError(null); // Clear previous errors on setup
 
-		// Create PeerConnection if it doesn't exist
-		if (!peerConnectionRef.current) {
-			try {
-				console.log('Creating PeerConnection with config:', config);
-				peerConnectionRef.current = new RTCPeerConnection(config);
-				setConnectionState(peerConnectionRef.current.iceConnectionState); // Initialize state
-			} catch (e) {
-				console.error('Failed to create PeerConnection:', e);
-				setError(e);
-				return; // Cannot proceed without PeerConnection
-			}
-		}
-
-		const pc = peerConnectionRef.current; // Alias for convenience
 
 		// --- WebSocket Message Handler ---
 		const handleWebSocketMessage = async (event) => {
@@ -335,10 +455,15 @@ function useWebRTC(ws, senderId, config) {
 							console.warn(`Received offer in unexpected state: ${callStateRef.current}. Ignoring.`);
 							return;
 						}
+
+						createNewPcWithListeners();
+
 						console.log('Received offer from peer:', message.senderId);
+
 						try {
 							receiverIdRef.current = message.senderId; // Store sender as the receiver for answer/candidates
-							await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
+
+							await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(message.offer));
 							console.log('Remote description (offer) set.');
 							setCallState('receiving'); // Update state: ready to answer
 							// UI should now prompt user to answer
@@ -357,7 +482,7 @@ function useWebRTC(ws, senderId, config) {
 						console.log('Received answer from peer:', message.senderId);
 						try {
 							const remoteDesc = new RTCSessionDescription(message.answer);
-							await pc.setRemoteDescription(remoteDesc);
+							await peerConnectionRef.current.setRemoteDescription(remoteDesc);
 							console.log('Remote description (answer) set.');
 							setCallState('connected'); // Update state
 
@@ -365,7 +490,7 @@ function useWebRTC(ws, senderId, config) {
 							console.log(`Processing ${candidateQueue.current.length} queued candidates...`);
 							await Promise.all(candidateQueue.current.map(async (candidate) => {
 								try {
-									await pc.addIceCandidate(candidate);
+									await peerConnectionRef.current.addIceCandidate(candidate);
 									console.log('Added queued ICE candidate.');
 								} catch (e) {
 									console.error('Error adding queued ICE candidate:', e);
@@ -383,8 +508,8 @@ function useWebRTC(ws, senderId, config) {
 						try {
 							if (message.candidate) {
 								const candidate = new RTCIceCandidate(message.candidate);
-								if (pc.remoteDescription) {
-									await pc.addIceCandidate(candidate);
+								if (peerConnectionRef.current.remoteDescription) {
+									await peerConnectionRef.current.addIceCandidate(candidate);
 									console.log('Added received ICE candidate directly.');
 								} else {
 									candidateQueue.current.push(candidate);
@@ -417,111 +542,13 @@ function useWebRTC(ws, senderId, config) {
 			}
 		};
 
-		// --- PeerConnection Event Listeners ---
-		const handleIceCandidate = (event) => {
-			if (event.candidate) {
-				console.log('Generated ICE Candidate:', event.candidate);
-				if (ws.readyState === WebSocket.OPEN) {
-					// Send candidate - receiverIdRef should be set by initiateCall or offer handling
-					const targetId = receiverIdRef.current;
-					if (targetId) {
-						ws.send(JSON.stringify({
-							type: 'ice-candidate',
-							candidate: event.candidate,
-							senderId: senderId,
-							receiverId: targetId
-						}));
-					} else {
-						console.warn('Cannot send ICE candidate, receiverId not set.');
-					}
-				} else {
-					console.warn('WebSocket not open. Cannot send ICE candidate.');
-				}
-			}
-		};
 
-		const handleTrack = (event) => {
-			console.log('Track received:', event.track, 'Stream:', event.streams[0]);
-			if (event.streams && event.streams[0]) {
-				setRemoteStream(event.streams[0]);
-			}
-		};
 
-		// hangUp is included in useEffect dependencies, so direct call is safe
-		const handleIceConnectionStateChange = () => {
-			const newState = pc.iceConnectionState;
-			console.log(`ICE Connection State change: ${newState}`);
-			setConnectionState(newState);
-			if (newState === 'connected' || newState === 'completed') {
-				console.log('WebRTC connection established.');
-				if (callStateRef.current !== 'connected') setCallState('connected'); // Ensure call state reflects connection (use ref)
-			} else if (newState === 'failed') {
-				console.error('WebRTC connection failed. Attempting ICE restart...');
-				pc.restartIce();
-			} else if (newState === 'disconnected') {
-				console.warn('WebRTC connection disconnected. May recover...');
-				// No automatic action here per plan, but could add timeout for restart
-			} else if (newState === 'closed') {
-				console.log('WebRTC connection closed.');
-				// Reset state if closed unexpectedly and not already idle (use ref here)
-				if (callStateRef.current !== INITIAL_CALL_STATE) {
-					console.warn('Connection closed unexpectedly. Resetting state.');
-					// Call hangUp directly to ensure full cleanup and state reset
-					// Use a check or flag if hangUp might cause issues here, but usually it's safe
-					hangUp(); // Call hangUp directly
-				}
-			}
-		};
-
-		const handleNegotiationNeeded = async () => {
-			if (isNegotiating.current || pc.signalingState !== 'stable') {
-				console.log('Skipping negotiationneeded event:', { negotiating: isNegotiating.current, state: pc.signalingState });
-				return;
-			}
-
-			isNegotiating.current = true;
-			console.log('Negotiation needed, creating new offer...');
-			try {
-				// Ensure receiverIdRef is set (might happen if tracks added before initial call setup)
-				const targetId = receiverIdRef.current;
-				if (!targetId) {
-					console.warn('Negotiation needed, but no receiverId set. Aborting.');
-					isNegotiating.current = false;
-					return;
-				}
-
-				const offer = await pc.createOffer();
-				if (pc.signalingState !== 'stable') {
-					console.log('Signaling state changed during offer creation, aborting negotiation.');
-					isNegotiating.current = false;
-					return;
-				}
-				await pc.setLocalDescription(offer);
-				console.log('New local description set, sending new offer...');
-				if (ws.readyState === WebSocket.OPEN) {
-					ws.send(JSON.stringify({
-						type: 'offer', // Re-send offer type
-						offer: pc.localDescription,
-						senderId: senderId,
-						receiverId: targetId
-					}));
-				} else {
-					console.error('WebSocket not open during re-negotiation. Cannot send new offer.');
-					// Set error state?
-				}
-			} catch (e) {
-				console.error('Error during renegotiation:', e);
-				setError(e);
-			} finally {
-				isNegotiating.current = false;
-			}
-		};
-
-		// Attach listeners
-		pc.onicecandidate = handleIceCandidate;
-		pc.ontrack = handleTrack;
-		pc.oniceconnectionstatechange = handleIceConnectionStateChange;
-		pc.onnegotiationneeded = handleNegotiationNeeded;
+		// // Attach listeners
+		// pc.onicecandidate = handleIceCandidate;
+		// pc.ontrack = handleTrack;
+		// pc.oniceconnectionstatechange = () => handleIceConnectionStateChange(pc);
+		// pc.onnegotiationneeded = () => handleNegotiationNeeded(pc);
 		ws.addEventListener('message', handleWebSocketMessage);
 
 		// Cleanup function
@@ -529,26 +556,19 @@ function useWebRTC(ws, senderId, config) {
 			console.log('useWebRTC effect cleanup running...');
 			// Remove listeners
 			ws.removeEventListener('message', handleWebSocketMessage);
-			if (peerConnectionRef.current) {
-				peerConnectionRef.current.onicecandidate = null;
-				peerConnectionRef.current.ontrack = null;
-				peerConnectionRef.current.oniceconnectionstatechange = null;
-				peerConnectionRef.current.onnegotiationneeded = null;
 
-				// Close the connection and nullify ref on cleanup if dependencies change or component unmounts
-				console.log('Closing PeerConnection in cleanup...');
-				peerConnectionRef.current.close();
-				peerConnectionRef.current = null;
+			// Clear any pending disconnect timeout on cleanup
+			if (disconnectTimeoutRef.current) {
+				clearTimeout(disconnectTimeoutRef.current);
+				disconnectTimeoutRef.current = null;
 			}
-			// Removed duplicate log line
+
+			// Optional: Consider if peerConnectionRef cleanup is needed here or handled by hangUp
+			// if (peerConnectionRef.current) {
+			// ... existing cleanup logic ...
+			// }
 		};
-	}, [ws, senderId, config, hangUp]); // Add hangUp dependency
-
-	// --- Action Functions ---
-
-	// Moved the useCallback definitions above the main useEffect
-
-	// Moved the useCallback definitions above the main useEffect
+	}, [ws, senderId, config, hangUp, handleIceCandidate, handleIceConnectionStateChange, handleNegotiationNeeded, createNewPcWithListeners]); // Add hangUp dependency
 
 	// --- Return API ---
 	return {

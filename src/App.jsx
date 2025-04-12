@@ -41,6 +41,7 @@ function App() {
 		if (localStream && localVideoRef.current) {
 			console.log('Setting local video srcObject');
 			localVideoRef.current.srcObject = localStream;
+			console.log(localVideoRef.current.srcObject);
 		}
 	}, [localStream]);
 
@@ -51,6 +52,7 @@ function App() {
 			remoteVideoRef.current.srcObject = remoteStream;
 		}
 	}, [remoteStream]);
+
 
 	// --- Handlers ---
 
@@ -161,7 +163,7 @@ function App() {
 					/>
 				</div>
 				<div>
-					<button onClick={handleGetMedia} disabled={!!localStream}>
+					<button onClick={handleGetMedia} disabled={false}>
 						{localStream ? 'Media Obtained' : 'Get Media'}
 					</button>
 					{getUserMediaError && <p className="error">Media Error: {getUserMediaError.message}</p>}
