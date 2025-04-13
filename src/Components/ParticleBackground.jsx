@@ -28,8 +28,8 @@ function ParticleBackground() {
 	// Keep the same options object from Step 14 / Previous Step
 	const particleOptions = useMemo(() => ({
 		preset: "links",
-		background: { color: { value: '#04041a', }, },
-		fpsLimit: 100,
+		background: { color: { value: '#090b0c', }, },
+		fpsLimit: 60,
 		interactivity: {
 			events: {
 				onClick: { enable: true, mode: 'push', },
@@ -39,19 +39,19 @@ function ParticleBackground() {
 			modes: {
 				push: { quantity: 4, },
 				grab: { // Ensure grab configuration is present
-					distance: 200,
-					links: { opacity: 0.7 }
+					distance: 150,
+					links: { opacity: 1 }
 				},
 			},
 		},
 		particles: {
 			color: { value: '#ffffff', },
-			links: { color: '#ffffff', distance: 150, enable: true, opacity: 0.5, width: 0.8, },
-			move: { direction: 'none', enable: true, outModes: { default: 'out', }, random: true, speed: 3.0, straight: false, },
+			links: { color: '#ffffff', distance: 150, enable: true, opacity: 0.7, width: 1, },
+			move: { direction: 'none', enable: true, outModes: { default: 'out', }, random: true, speed: 2.0, straight: false, },
 			number: { density: { enable: false, area: 800, }, value: 100, },
-			opacity: { value: 0.5, },
+			opacity: { value: 1, },
 			shape: { type: 'circle', },
-			size: { value: { min: 0, max: 3 }, },
+			size: { value: { min: 0, max: 2.5 }, },
 		},
 		detectRetina: false,
 	}), []);
@@ -64,14 +64,14 @@ function ParticleBackground() {
 				id="tsparticles" // Unique ID for the canvas element
 				particlesLoaded={particlesLoaded} // Callback function when particles are ready
 				options={particleOptions} // The options object defined above
-				style={{ // Basic CSS styling for the canvas container
-					position: 'absolute',
-					top: 0,
-					left: 0,
-					width: '100%',
-					height: '100%',
-					zIndex: -1
-				}}
+			// style={{ // Basic CSS styling for the canvas container
+			// 	position: 'absolute',
+			// 	top: 0,
+			// 	left: 0,
+			// 	width: '100%',
+			// 	height: '100%',
+			// 	zIndex: 0
+			// }}
 			/>
 		);
 	}
