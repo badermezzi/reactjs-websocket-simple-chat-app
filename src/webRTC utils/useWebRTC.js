@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Initial state values
-const INITIAL_CALL_STATE = 'idle'; // idle, calling, receiving, connected,        maybe add // disconnected
+const INITIAL_CALL_STATE = 'idle'; // idle, calling, receiving, connected
 const INITIAL_CONNECTION_STATE = 'new';
 
 /**
@@ -28,7 +28,6 @@ function useWebRTC(ws, senderId, config) {
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
 	const [error, setError] = useState(null);
 
-	// --- Action Functions (defined before useEffect that depends on them) ---
 
 	// Define hangUp first as it might be needed by others or useEffect
 	const hangUp = useCallback(() => {
@@ -543,12 +542,6 @@ function useWebRTC(ws, senderId, config) {
 		};
 
 
-
-		// // Attach listeners
-		// pc.onicecandidate = handleIceCandidate;
-		// pc.ontrack = handleTrack;
-		// pc.oniceconnectionstatechange = () => handleIceConnectionStateChange(pc);
-		// pc.onnegotiationneeded = () => handleNegotiationNeeded(pc);
 		ws.addEventListener('message', handleWebSocketMessage);
 
 		// Cleanup function
@@ -563,10 +556,6 @@ function useWebRTC(ws, senderId, config) {
 				disconnectTimeoutRef.current = null;
 			}
 
-			// Optional: Consider if peerConnectionRef cleanup is needed here or handled by hangUp
-			// if (peerConnectionRef.current) {
-			// ... existing cleanup logic ...
-			// }
 		};
 	}, [ws, senderId, config, hangUp, handleIceCandidate, handleIceConnectionStateChange, handleNegotiationNeeded, createNewPcWithListeners]); // Add hangUp dependency
 
