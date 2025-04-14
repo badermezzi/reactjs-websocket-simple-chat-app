@@ -28,8 +28,8 @@ function ParticleBackground() {
 	// Keep the same options object from Step 14 / Previous Step
 	const particleOptions = useMemo(() => ({
 		preset: "links",
-		background: { color: { value: '#090b0c', }, },
-		fpsLimit: 60,
+		background: { color: { value: '#0a0b0e', }, },
+		fpsLimit: 200,
 		interactivity: {
 			events: {
 				onClick: { enable: true, mode: 'push', },
@@ -37,7 +37,7 @@ function ParticleBackground() {
 				resize: true,
 			},
 			modes: {
-				push: { quantity: 4, },
+				push: { quantity: 3, },
 				grab: { // Ensure grab configuration is present
 					distance: 150,
 					links: { opacity: 1 }
@@ -46,12 +46,12 @@ function ParticleBackground() {
 		},
 		particles: {
 			color: { value: '#ffffff', },
-			links: { color: '#ffffff', distance: 150, enable: true, opacity: 0.7, width: 1, },
+			links: { color: '#ffffff', distance: 150, enable: true, opacity: 1, width: 0.7, },
 			move: { direction: 'none', enable: true, outModes: { default: 'out', }, random: true, speed: 2.0, straight: false, },
 			number: { density: { enable: false, area: 800, }, value: 100, },
 			opacity: { value: 1, },
 			shape: { type: 'circle', },
-			size: { value: { min: 0, max: 2.5 }, },
+			size: { value: { min: 0, max: 3 }, },
 		},
 		detectRetina: false,
 	}), []);
