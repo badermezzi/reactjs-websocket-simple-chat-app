@@ -6,7 +6,7 @@ import MessageList from '../Components/MessageList'; // Import the new message l
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 function ChatPage() {
 
-	const [selectedFriend, setSelectedFriend] = useState(null)
+	const [selectedFriend, setSelectedFriend] = useState({})
 
 	const [isTyping, setIsTyping] = useState(true); // Temp state for typing indicator visibility
 	const [showScrollButton, setShowScrollButton] = useState(false);
@@ -16,14 +16,12 @@ function ChatPage() {
 
 	const messagesEndRef = useRef(null); // Ref for the bottom element (for scrolling to)
 	const messageContainerRef = useRef(null); // Ref for the scrollable container itself
+	const ws = useRef(null); // Ref to hold the WebSocket instance
 
 	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); // Scroll function
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	};
 
-	useEffect(() => {
-		scrollToBottom(); // Scroll down on initial render and when messages change
-	}, []); // Empty dependency array means run only on mount
 
 	// Effect to handle scroll event for showing/hiding the scroll button
 	useEffect(() => {
@@ -31,17 +29,58 @@ function ChatPage() {
 
 		const handleScroll = () => {
 			if (container) {
-				const { scrollTop, scrollHeight, clientHeight } = container;
-				// Show button if scrolled up more than a certain threshold (e.g., 100px)
-				setShowScrollButton(scrollHeight - scrollTop - clientHeight > 100);
+				const { scrollTop } = container;
+				// With flex-col-reverse, scrollTop is 0 at bottom, negative when scrolled up.
+				setShowScrollButton(scrollTop < -100); // Show button if scrolled up significantly (adjust threshold if needed)
 			}
 		};
-
 		container?.addEventListener('scroll', handleScroll);
 
 		// Cleanup listener on component unmount
 		return () => container?.removeEventListener('scroll', handleScroll);
 	}, []); // Empty dependency array, listener attached once
+
+	// Effect to establish WebSocket connection
+	useEffect(() => {
+		const token = localStorage.getItem('authToken');
+		if (!token) {
+			console.error('WebSocket: No auth token found.');
+			// Optionally redirect to login
+			return;
+		}
+
+		// Replace with your actual WebSocket server address
+		const wsUrl = `ws://localhost:8080/ws?token=${token}`; // Assuming ws, adjust if wss
+
+		ws.current = new WebSocket(wsUrl);
+
+		ws.current.onopen = () => {
+			console.log('WebSocket Connected');
+			// You might want to send a ping or initial message here
+		};
+
+		ws.current.onclose = (event) => {
+			console.log('WebSocket Disconnected:', event.reason, event.code);
+			// Implement reconnection logic if needed
+		};
+
+		ws.current.onerror = (error) => {
+			console.error('WebSocket Error:', error);
+		};
+
+		ws.current.onmessage = (event) => {
+			console.log('WebSocket Message:', event.data);
+			// TODO: Handle incoming messages (e.g., parse JSON, update message list)
+			// const message = JSON.parse(event.data);
+			// Add message to state, potentially check if it belongs to the selectedFriend
+		};
+
+		// Cleanup function to close WebSocket on component unmount
+		return () => {
+			console.log('Closing WebSocket');
+			ws.current?.close();
+		};
+	}, []); // Empty dependency array ensures this runs only once on mount
 
 
 	const onEmojiClick = (emojiObject) => {
@@ -50,17 +89,7 @@ function ChatPage() {
 		// setShowPicker(false);
 	};
 
-	// Dummy messages array
-	const messages = [
-		{ id: 1, message: "Hey, how are you?", owner: false, time: "10:01 AM" },
-		{ id: 2, message: "I'm good, thanks! How about you?", owner: true, time: "10:02 AM" },
-		{ id: 3, message: "Doing well. Just working on this chat app.", owner: false, time: "10:03 AM" },
-		{ id: 4, message: "Nice! It's looking great.", owner: true, time: "10:03 AM" },
-		{ id: 5, message: "Thanks! Still lots to do though.", owner: false, time: "10:04 AM" },
-		{ id: 6, message: "Yeah, always more features to add.", owner: true, time: "10:05 AM" },
-		{ id: 7, message: "Definitely. Like adding proper message rendering.", owner: false, time: "10:05 AM" },
-		{ id: 8, message: "Haha, exactly!", owner: true, time: "10:06 AM" },
-	];
+
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
@@ -70,10 +99,11 @@ function ChatPage() {
 				<div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
 					<ChatAreaHeader selectedFriend={selectedFriend} setIsTyping={setIsTyping} />
 					<MessageList
-						messages={messages}
 						isTyping={isTyping}
 						messageContainerRef={messageContainerRef}
 						messagesEndRef={messagesEndRef}
+						selectedFriend={selectedFriend}
+						scrollToBottom={scrollToBottom} // Pass scroll function down
 					/>
 					<MessageInput
 						inputText={inputText}
@@ -97,6 +127,6 @@ function ChatPage() {
 			</div>
 		</div >
 	);
-}
+};
 
 export default ChatPage;

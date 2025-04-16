@@ -22,7 +22,7 @@ function ParticleBackground() {
 	}, []);
 
 	const particlesLoaded = useCallback(async (container) => {
-		console.log("Particles component loaded:", container);
+		// console.log("Particles component loaded:", container);
 	}, []);
 
 	// Keep the same options object from Step 14 / Previous Step
