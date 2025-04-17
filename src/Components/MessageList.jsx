@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 
-function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFriend }) { // Removed scrollToBottom prop
-	const [messages, setMessages] = useState([]); // State for fetched messages
+function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFriend, messages, setMessages, messagesPaginationPage, setMessagesPaginationPage }) { // Removed scrollToBottom prop
+	const navigate = useNavigate(); // Get navigate function
 	const [currentUserId, setCurrentUserId] = useState(null);
+
+	const oldestMessageViewRef = useRef(null); // Ref for the element to observe
+	const [isOldestMessageInView, setIsOldestMessageInView] = useState(false); // State to track visibility
+	const observer = useRef(null); // Ref to store the observer instance
 
 	// Get current user ID on mount
 	useEffect(() => {
@@ -23,7 +28,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 	// Fetch messages when selectedFriend changes
 	useEffect(() => {
 		const fetchMessages = async () => {
-			if (!selectedFriend?.id || !currentUserId) {
+			if (!selectedFriend?.id) {
 				setMessages([]); // Clear messages if no friend selected or no current user ID
 				return;
 			}
@@ -36,7 +41,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 			}
 
 			try {
-				const response = await fetch(`http://localhost:8080/messages?partner_id=${selectedFriend.id}&page=1&limit=10`, { // Added page=1
+				const response = await fetch(`http://localhost:8080/messages?partner_id=${selectedFriend.id}&page=${messagesPaginationPage}&limit=10`, { // Added page=1
 					method: 'GET',
 					headers: {
 						'Authorization': `Bearer ${token}`,
@@ -47,11 +52,15 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 					const data = await response.json();
 					// API returns newest first, reverse for display order (oldest first)
 					// API returns newest first, which is what flex-col-reverse needs
-					setMessages(Array.isArray(data) ? data : []); // Removed data.reverse()
+					setMessages(Array.isArray(data) ? [...messages, ...data] : []);
+					console.log("data fetched");
+
 				} else if (response.status === 401) {
-					toast.error("Unauthorized. Please log in again.");
-					// Optionally clear token and redirect to login here
+					toast.error("Please log in again.");
+					localStorage.removeItem('authToken'); // Clear auth token
+					localStorage.removeItem('userData'); // Clear user data
 					setMessages([]);
+					navigate('/'); // Redirect to login page
 				} else {
 					toast.error(`Failed to fetch messages: ${response.statusText}`);
 					setMessages([]);
@@ -65,7 +74,66 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 		};
 
 		fetchMessages();
-	}, [selectedFriend, currentUserId]); // Removed scrollToBottom from dependencies
+	}, [selectedFriend, messagesPaginationPage, setMessages]);
+
+	// Callback for Intersection Observer
+	const handleObserver = useCallback((entries) => {
+		const target = entries[0];
+		if (target.isIntersecting) {
+			console.log("Oldest message marker is visible!");
+			setIsOldestMessageInView(true);
+			setTimeout(() => {
+				setMessagesPaginationPage((prev) => (prev + 1));
+				setIsOldestMessageInView(false);
+			}, 1000);
+			// Optional: Unobserve after first intersection if needed
+			// if (observer.current && oldestMessageViewRef.current) {
+			// 	observer.current.unobserve(oldestMessageViewRef.current);
+			// }
+		} else {
+			// Optional: Set back to false if it scrolls out of view
+			console.log("Oldest message marker is not visible!");
+			// setIsOldestMessageInView(true);
+		}
+	}, [setMessagesPaginationPage]);
+
+	// Effect to setup Intersection Observer
+	useEffect(() => {
+		// Ensure container ref is available
+		if (!messageContainerRef.current) {
+			console.warn("Message container ref not available for observer setup.");
+			return;
+		}
+
+		const options = {
+			root: messageContainerRef.current, // Use the scrollable container
+			rootMargin: '0px',
+			threshold: 1.0 // Trigger when 100% visible (adjust as needed)
+		};
+
+		// Disconnect previous observer if it exists
+		if (observer.current) {
+			observer.current.disconnect();
+		}
+
+		// Create and store the new observer
+		observer.current = new IntersectionObserver(handleObserver, options);
+
+		// Observe the target element if it exists
+		if (oldestMessageViewRef.current) {
+			observer.current.observe(oldestMessageViewRef.current);
+		} else {
+			console.warn("Oldest message view ref not available for observing.");
+		}
+
+		// Cleanup function
+		return () => {
+			if (observer.current) {
+				observer.current.disconnect();
+			}
+		};
+		// Dependencies: Re-run if container, target ref, or callback changes
+	}, [messageContainerRef, oldestMessageViewRef, handleObserver]);
 
 
 
@@ -85,7 +153,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 						exit={{ opacity: 0, y: 10 }} // Fade out and slide down
 						transition={{ duration: 0.3 }} // Animation duration
 					>
-						<div className=" border border-gray-500/10 rounded-lg px-4 py-2 max-w-xs lg:max-w-md bg-gray-600/30 text-white/90">
+						<div className="  rounded-lg px-4 py-2 max-w-xs lg:max-w-md  text-white/90">
 							<div className="flex space-x-1 items-center h-5"> {/* Container for dots */}
 								<span className="block h-2 w-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0ms' }}></span>
 								<span className="block h-2 w-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '150ms' }}></span>
@@ -112,6 +180,23 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 					</motion.div>
 				); // Ensure return is inside the map callback
 			})}
+
+			{/* Target div for Intersection Observer */}
+			<div ref={oldestMessageViewRef} style={{ height: '1px', width: '100%', flexShrink: 0 }} />
+
+			{/* Example: Conditionally render based on visibility state */}
+			{isOldestMessageInView && ( // Conditionally render based on isTyping state
+				<div
+					className="flex justify-center mb-3" // Aligned left
+
+				>
+					<div className=" px-4 py-2 max-w-xs lg:max-w-md text-white/90">
+						<div className="flex space-x-1 items-center h-5">
+							<span className="block h-4 w-1 rounded-full bg-gray-300 animate-spin" ></span>
+						</div>
+					</div>
+				</div>
+			)}
 
 		</div >
 	);

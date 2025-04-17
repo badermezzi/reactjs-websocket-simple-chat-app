@@ -5,10 +5,23 @@ import ChatAreaHeader from '../Components/ChatAreaHeader'; // Import the new cha
 import MessageList from '../Components/MessageList'; // Import the new message list component
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 function ChatPage() {
+	// Retrieve user data from localStorage
+	const storedUserData = localStorage.getItem('userData');
+	const currentUser = storedUserData ? JSON.parse(storedUserData) : null;
+	const currentUserId = currentUser?.user_id; // Assuming the ID is stored as 'id'
 
-	const [selectedFriend, setSelectedFriend] = useState({})
+	const [messages, setMessages] = useState([]);
+	const [messagesPaginationPage, setMessagesPaginationPage] = useState(0);
 
-	const [isTyping, setIsTyping] = useState(true); // Temp state for typing indicator visibility
+	const [selectedFriend, setSelectedFriend] = useState({});
+
+	const selectedFriendRef = useRef({});
+
+	useEffect(() => {
+		selectedFriendRef.current = selectedFriend
+	}, [selectedFriend]);
+
+	const [isTyping, setIsTyping] = useState(false); // Temp state for typing indicator visibility
 	const [showScrollButton, setShowScrollButton] = useState(false);
 	const [inputText, setInputText] = useState(""); // State for the message input
 	const [showPicker, setShowPicker] = useState(false); // State for emoji picker visibility
@@ -69,10 +82,55 @@ function ChatPage() {
 		};
 
 		ws.current.onmessage = (event) => {
-			console.log('WebSocket Message:', event.data);
-			// TODO: Handle incoming messages (e.g., parse JSON, update message list)
-			// const message = JSON.parse(event.data);
-			// Add message to state, potentially check if it belongs to the selectedFriend
+			console.log('WebSocket Message Received:', event.data);
+			try {
+				const message = JSON.parse(event.data);
+
+				// Check message type
+				if (message.type === 'incoming_message') {
+					// Format the message according to the required state structure
+					const newMessage = {
+						id: Date.now(), // Placeholder ID
+						sender_id: message.sender_id,
+						// receiver_id: null, // Omitting as requested for now
+						content: message.content,
+						created_at: new Date().toISOString() // Placeholder timestamp
+					};
+
+					// Add the new message to the state
+					// We add it to the end because new messages appear at the bottom
+
+					setMessages(prevMessages => [newMessage, ...prevMessages]);
+
+					// Optional: Scroll to bottom only if the message is from/to the selected friend
+					// This check prevents scrolling if a message arrives for a different chat
+					// if (message.sender_id === selectedFriend?.id /* || check if current user sent it */ ) {
+					//  scrollToBottom(); // Consider calling this conditionally or in a useEffect hook watching messages
+					// }
+					// For simplicity now, let's scroll unconditionally, but be aware of the above point.
+					// Calling scrollToBottom directly might sometimes race with the render.
+					// A useEffect watching `messages` might be more robust.
+					// setTimeout(scrollToBottom, 0); // A common workaround for scroll timing issues
+
+				} else if (message.type === 'typing_start') {
+					// Check if the typing is from the selected friend
+					if (+message.sender_id === +selectedFriendRef.current.id) {
+						console.log(`Friend ${selectedFriendRef.current.id} started typing.`);
+						setIsTyping(true);
+					}
+				} else if (message.type === 'typing_stop') {
+					// Check if the typing stop is from the selected friend
+					if (message.sender_id === selectedFriendRef.current.id) {
+						console.log(`Friend ${selectedFriendRef.current.id} stopped typing.`);
+						setIsTyping(false);
+					}
+				}
+				else {
+					console.log("Received unhandled message type:", message.type);
+				}
+			} catch (error) {
+				console.error('Failed to parse incoming WebSocket message or process it:', error);
+			}
 		};
 
 		// Cleanup function to close WebSocket on component unmount
@@ -95,10 +153,25 @@ function ChatPage() {
 		<div className='h-screen bg-[#11161C] flex flex-col'>
 			<ChatHeader />
 			<div className='flex flex-grow overflow-hidden'>
-				<Sidebar selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
+
+				<Sidebar
+					setMessagesPaginationPage={setMessagesPaginationPage}
+
+					messages={messages}
+					setMessages={setMessages}
+					selectedFriend={selectedFriend}
+					setSelectedFriend={setSelectedFriend}
+				/>
+
 				<div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
 					<ChatAreaHeader selectedFriend={selectedFriend} setIsTyping={setIsTyping} />
 					<MessageList
+						messagesPaginationPage={messagesPaginationPage}
+						setMessagesPaginationPage={setMessagesPaginationPage}
+
+						messages={messages}
+						setMessages={setMessages}
+
 						isTyping={isTyping}
 						messageContainerRef={messageContainerRef}
 						messagesEndRef={messagesEndRef}
@@ -106,6 +179,10 @@ function ChatPage() {
 						scrollToBottom={scrollToBottom} // Pass scroll function down
 					/>
 					<MessageInput
+						setMessages={setMessages} // Pass the setter function
+						senderId={currentUserId} // Pass the sender's ID
+						ws={ws.current} // Pass the WebSocket instance
+						recipientId={selectedFriend?.id} // Pass the selected friend's ID
 						inputText={inputText}
 						setInputText={setInputText}
 						showPicker={showPicker}

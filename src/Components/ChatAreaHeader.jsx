@@ -1,7 +1,7 @@
 import React from 'react';
 
-// Added isTyping and onToggleTyping as props for the settings button functionality
-function ChatAreaHeader({ selectedFriend, setIsTyping }) {
+
+function ChatAreaHeader({ selectedFriend }) {
 	return (
 		<div className="h-18 flex items-center justify-between flex-shrink-0 p-5 border-b border-gray-700/20"> {/* Added flex, items-center, justify-between */}
 			{/* Left Side: Avatar + User Info */}
@@ -34,7 +34,7 @@ function ChatAreaHeader({ selectedFriend, setIsTyping }) {
 					</svg>
 				</button>
 				{/* Settings Button - Now uses onToggleTyping */}
-				<button onClick={() => setIsTyping(prev => (!prev))} className="p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/60 text-white/90 cursor-pointer">
+				<button className="p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/60 text-white/90 cursor-pointer">
 					{/* Placeholder SVG for Vertical Ellipsis */}
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
 						<path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />

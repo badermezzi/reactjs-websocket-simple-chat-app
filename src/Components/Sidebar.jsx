@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; // For error notifications
 
-function Sidebar({ selectedFriend, setSelectedFriend }) {
+function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage }) {
 	const [onlineUsers, setOnlineUsers] = useState([]); // State for online users
 	const [offlineUsers, setOfflineUsers] = useState([]); // State for offline users
 	const [displayedUsers, setDisplayedUsers] = useState([]); // Combined list for UI
@@ -74,6 +74,11 @@ function Sidebar({ selectedFriend, setSelectedFriend }) {
 
 	// const friends = [1, 2, 3, 4, 5]; // Removed placeholder
 
+	function handleOnSelectFriend(user) {
+		setMessages([]);
+		setMessagesPaginationPage(1);
+		setSelectedFriend(user);
+	}
 
 	return (
 		<div className='w-75 bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white p-5 flex flex-col flex-shrink-0 rounded-2xl m-4 mr-2 mt-2'> {/* Added flex flex-col */}
@@ -97,7 +102,7 @@ function Sidebar({ selectedFriend, setSelectedFriend }) {
 			<ul className="flex-grow overflow-y-auto"> {/* Allow list to scroll */}
 				{displayedUsers.length > 0 ? (
 					displayedUsers.map((user) => (
-						<li onClick={() => setSelectedFriend(user)} key={user.id} className="mb-2 my-0">
+						<li onClick={() => handleOnSelectFriend(user)} key={user.id} className="mb-2 my-0">
 							{/* Friend Item Structure */}
 							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${user.id === selectedFriend.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
 								{/* Left Block: Avatar */}
