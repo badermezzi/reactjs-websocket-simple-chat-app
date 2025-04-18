@@ -1,76 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // For error notifications
+import React from 'react';
 
-function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage }) {
-	const [onlineUsers, setOnlineUsers] = useState([]); // State for online users
-	const [offlineUsers, setOfflineUsers] = useState([]); // State for offline users
-	const [displayedUsers, setDisplayedUsers] = useState([]); // Combined list for UI
-
-	useEffect(() => {
-		const fetchUsers = async () => {
-			// Fetch Online Users
-			try {
-				const onlineResponse = await fetch('http://localhost:8080/users/online');
-				if (onlineResponse.ok) {
-					const onlineData = await onlineResponse.json();
-					setOnlineUsers(onlineData.online_users || []);
-					console.log('Fetched online users:', onlineData.online_users);
-				} else {
-					console.error('Failed to fetch online users:', onlineResponse.statusText);
-					toast.error('Could not load online users list.');
-				}
-			} catch (error) {
-				console.error('Error fetching online users:', error);
-				toast.error('Network error fetching online users.');
-			}
-
-			// Fetch Offline Users
-			try {
-				const offlineResponse = await fetch('http://localhost:8080/users/offline');
-				if (offlineResponse.ok) {
-					const offlineData = await offlineResponse.json();
-					setOfflineUsers(offlineData.offline_users || []);
-					console.log('Fetched offline users:', offlineData.offline_users);
-				} else {
-					console.error('Failed to fetch offline users:', offlineResponse.statusText);
-					toast.error('Could not load offline users list.');
-				}
-			} catch (error) {
-				console.error('Error fetching offline users:', error);
-				toast.error('Network error fetching offline users.');
-			}
-		};
-
-		fetchUsers(); // Call the combined fetch function
-	}, []); // Empty dependency array means this runs once on mount
-
-	// Effect to combine and filter users when onlineUsers or offlineUsers change
-	useEffect(() => {
-		let currentUserId = null;
-		try {
-			const userDataString = localStorage.getItem('userData');
-			if (userDataString) {
-				const userData = JSON.parse(userDataString);
-				currentUserId = userData?.user_id; // Get logged-in user's ID
-			}
-		} catch (e) {
-			console.error("Failed to parse user data from localStorage", e);
-		}
-
-		const onlineWithStatus = onlineUsers.map(u => ({ ...u, isOnline: true }));
-		const offlineWithStatus = offlineUsers.map(u => ({ ...u, isOnline: false }));
-
-		// Combine users
-		const combinedUsers = [...onlineWithStatus, ...offlineWithStatus];
-
-		// Filter out the current user if their ID was found
-		const filteredUsers = currentUserId
-			? combinedUsers.filter(user => user.id !== currentUserId)
-			: combinedUsers;
-
-		setDisplayedUsers(filteredUsers);
-
-	}, [onlineUsers, offlineUsers]); // Re-run when fetched data changes
+function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
+	/*
+		// State and effects moved to ChatPage.jsx
+	*/
 
 	// const friends = [1, 2, 3, 4, 5]; // Removed placeholder
 
