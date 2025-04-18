@@ -63,7 +63,7 @@ function ChatPage() {
 		const fetchUsers = async () => {
 			// Fetch Online Users
 			try {
-				const onlineResponse = await fetch('http://localhost:8080/users/online');
+				const onlineResponse = await fetch('https://mytestapi.loca.lt/users/online');
 				if (onlineResponse.ok) {
 					const onlineData = await onlineResponse.json();
 					setOnlineUsers(onlineData.online_users || []);
@@ -79,7 +79,7 @@ function ChatPage() {
 
 			// Fetch Offline Users
 			try {
-				const offlineResponse = await fetch('http://localhost:8080/users/offline');
+				const offlineResponse = await fetch('https://mytestapi.loca.lt/users/offline');
 				if (offlineResponse.ok) {
 					const offlineData = await offlineResponse.json();
 					setOfflineUsers(offlineData.offline_users || []);

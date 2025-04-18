@@ -33,7 +33,7 @@ function ChatHeader({ currentUser }) {
 					<img
 						src={`https://i.pravatar.cc/150?img=${currentUser.user_id}`} // Using placehold.co
 						alt="User Avatar"
-						className="h-13 w-13 rounded-full drop-shadow-black border border-gray-400/80 cursor-pointer opacity-85 hover:opacity-100" // Adjust size (h-10 w-10) as needed
+						className="h-13 w-13 rounded-full drop-shadow-black border border-gray-400/50 cursor-pointer opacity-85 hover:opacity-100" // Adjust size (h-10 w-10) as needed
 					/>
 					{/* Online Indicator - Positioned relative to the container */}
 					<span className="absolute bottom-[-3px] right-1 flex h-3 w-3 -translate-y-1/2 translate-x-1/2"> {/* Position top-right with offset */}
