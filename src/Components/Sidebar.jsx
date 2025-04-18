@@ -8,6 +8,11 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 	// const friends = [1, 2, 3, 4, 5]; // Removed placeholder
 
 	function handleOnSelectFriend(user) {
+
+		if (user === selectedFriend) {
+			return
+		}
+
 		setMessages([]);
 		setMessagesPaginationPage(1);
 		setSelectedFriend(user);
@@ -37,7 +42,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 					displayedUsers.map((user) => (
 						<li onClick={() => handleOnSelectFriend(user)} key={user.id} className="mb-2 my-0">
 							{/* Friend Item Structure */}
-							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${user.id === selectedFriend.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
+							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
 								{/* Left Block: Avatar */}
 								<img
 									src={`https://i.pravatar.cc/150?u=${user.id}`} // Use id for consistent avatar

@@ -1,19 +1,19 @@
 import React from 'react';
 
 
-function ChatAreaHeader({ selectedFriend }) {
+function ChatAreaHeader({ selectedFriend, setSelectedFriend }) {
 	return (
 		<div className="h-18 flex items-center justify-between flex-shrink-0 p-5 border-b border-gray-700/20"> {/* Added flex, items-center, justify-between */}
 			{/* Left Side: Avatar + User Info */}
 			<div className="flex items-center">
 				<img
-					src={`https://i.pravatar.cc/150?u=${selectedFriend.id}`} // Placeholder avatar
+					src={`https://i.pravatar.cc/150?u=${selectedFriend?.id}`} // Placeholder avatar
 					alt="Chat Partner Avatar"
 					className="h-10 w-10 rounded-full mr-3"
 				/>
 				<div>
-					<div className="font-bold text-lg">{selectedFriend.username} </div>
-					<div className={`text-xs font-bold ${selectedFriend.isOnline ? "text-green-500" : "text-gray-500"}`}> {selectedFriend.isOnline ? "Online" : "Offline"}</div> {/* Status */}
+					<div className="font-bold text-lg">{selectedFriend?.username} </div>
+					<div className={`text-xs font-bold ${selectedFriend?.isOnline ? "text-green-500" : "text-gray-500"}`}> {selectedFriend?.isOnline ? "Online" : "Offline"}</div> {/* Status */}
 				</div>
 			</div>
 
@@ -33,11 +33,11 @@ function ChatAreaHeader({ selectedFriend }) {
 						<path strokeLinecap="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
 					</svg>
 				</button>
-				{/* Settings Button - Now uses onToggleTyping */}
-				<button className="p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/60 text-white/90 cursor-pointer">
-					{/* Placeholder SVG for Vertical Ellipsis */}
+				{/* Close Chat Button */}
+				<button onClick={() => setSelectedFriend(null)} className="p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/60 text-white/90 cursor-pointer">
+					{/* Close (X) Icon SVG */}
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-						<path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+						<path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
 					</svg>
 				</button>
 			</div>

@@ -41,7 +41,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 			}
 
 			try {
-				const response = await fetch(`http://localhost:8080/messages?partner_id=${selectedFriend.id}&page=${messagesPaginationPage}&limit=10`, { // Added page=1
+				const response = await fetch(`http://localhost:8080/messages?partner_id=${selectedFriend?.id}&page=${messagesPaginationPage}&limit=10`, { // Added page=1
 					method: 'GET',
 					headers: {
 						'Authorization': `Bearer ${token}`,
@@ -74,7 +74,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 		};
 
 		fetchMessages();
-	}, [selectedFriend, messagesPaginationPage, setMessages]);
+	}, [selectedFriend, messagesPaginationPage, setMessages, navigate]);
 
 	// Callback for Intersection Observer
 	const handleObserver = useCallback((entries) => {

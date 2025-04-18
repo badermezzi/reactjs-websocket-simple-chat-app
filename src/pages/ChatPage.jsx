@@ -13,7 +13,7 @@ function ChatPage() {
 	const [messages, setMessages] = useState([]);
 	const [messagesPaginationPage, setMessagesPaginationPage] = useState(0);
 
-	const [selectedFriend, setSelectedFriend] = useState({});
+	const [selectedFriend, setSelectedFriend] = useState(null);
 
 
 	const [onlineUsers, setOnlineUsers] = useState([]); // State for online users
@@ -198,6 +198,8 @@ function ChatPage() {
 					}
 				} else if (message.type === 'user_online') {
 					// Handle user online status
+					setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: true }));
+
 					setDisplayedUsers(prevUsers =>
 						prevUsers.map(user =>
 							user.id === message.userId ? { ...user, isOnline: true } : user
@@ -205,11 +207,14 @@ function ChatPage() {
 					);
 				} else if (message.type === 'user_offline') {
 					// Handle user offline status
+					setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: false }));
+
 					setDisplayedUsers(prevUsers =>
 						prevUsers.map(user =>
 							user.id === message.userId ? { ...user, isOnline: false } : user
 						)
 					);
+
 				} else {
 					console.log("Received unhandled message type:", message.type);
 				}
@@ -236,7 +241,7 @@ function ChatPage() {
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
-			<ChatHeader />
+			<ChatHeader currentUser={currentUser} />
 			<div className='flex flex-grow overflow-hidden'>
 
 				<Sidebar
@@ -249,8 +254,8 @@ function ChatPage() {
 					displayedUsers={displayedUsers} // Pass displayedUsers down
 				/>
 
-				<div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
-					<ChatAreaHeader selectedFriend={selectedFriend} setIsTyping={setIsTyping} />
+				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
+					<ChatAreaHeader selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
 						messagesPaginationPage={messagesPaginationPage}
 						setMessagesPaginationPage={setMessagesPaginationPage}
@@ -287,6 +292,10 @@ function ChatPage() {
 						</button>
 					)}
 				</div>
+					: <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
+
+					</div>
+				}
 			</div>
 		</div >
 	);
