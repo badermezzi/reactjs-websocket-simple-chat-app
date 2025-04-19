@@ -45,7 +45,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
 								{/* Left Block: Avatar */}
 								<img
-									src={`https://i.pravatar.cc/150?u=${user.id}`} // Use id for consistent avatar
+									src={`https://i.pravatar.cc/150?img=${user.id}`} // Use id for consistent avatar
 									alt={`${user.username} Avatar`}
 									className="h-10 w-10 rounded-full flex-shrink-0"
 								/>

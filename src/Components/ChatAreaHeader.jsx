@@ -7,7 +7,7 @@ function ChatAreaHeader({ selectedFriend, setSelectedFriend }) {
 			{/* Left Side: Avatar + User Info */}
 			<div className="flex items-center">
 				<img
-					src={`https://i.pravatar.cc/150?u=${selectedFriend?.id}`} // Placeholder avatar
+					src={`https://i.pravatar.cc/150?img=${selectedFriend?.id}`} // Placeholder avatar
 					alt="Chat Partner Avatar"
 					className="h-10 w-10 rounded-full mr-3"
 				/>
