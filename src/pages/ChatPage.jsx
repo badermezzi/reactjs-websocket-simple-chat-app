@@ -5,6 +5,9 @@ import ChatAreaHeader from '../Components/ChatAreaHeader'; // Import the new cha
 import MessageList from '../Components/MessageList'; // Import the new message list component
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 function ChatPage() {
+
+	const updatingSelectedFriendStatusRef = useRef(false);
+
 	// Retrieve user data from localStorage
 	const storedUserData = localStorage.getItem('userData');
 	const currentUser = storedUserData ? JSON.parse(storedUserData) : null;
@@ -34,6 +37,8 @@ function ChatPage() {
 	const messagesEndRef = useRef(null); // Ref for the bottom element (for scrolling to)
 	const messageContainerRef = useRef(null); // Ref for the scrollable container itself
 	const ws = useRef(null); // Ref to hold the WebSocket instance
+
+
 
 	const scrollToBottom = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -199,6 +204,8 @@ function ChatPage() {
 				} else if (message.type === 'user_online') {
 					// Handle user online status
 
+					updatingSelectedFriendStatusRef.current = true
+
 					if (selectedFriendRef.current?.id === message?.userId) {
 						setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: true }));
 					}
@@ -210,6 +217,8 @@ function ChatPage() {
 					);
 				} else if (message.type === 'user_offline') {
 					// Handle user offline status
+
+					updatingSelectedFriendStatusRef.current = true
 
 					if (selectedFriendRef.current?.id === message?.userId) {
 						setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: false }));
@@ -252,6 +261,7 @@ function ChatPage() {
 			<div className='flex flex-grow overflow-hidden'>
 
 				<Sidebar
+
 					setMessagesPaginationPage={setMessagesPaginationPage}
 
 					messages={messages}
@@ -262,10 +272,12 @@ function ChatPage() {
 				/>
 
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
-					<ChatAreaHeader selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
+					<ChatAreaHeader ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
 						messagesPaginationPage={messagesPaginationPage}
 						setMessagesPaginationPage={setMessagesPaginationPage}
+
+						updatingSelectedFriendStatusRef={updatingSelectedFriendStatusRef}
 
 						messages={messages}
 						setMessages={setMessages}

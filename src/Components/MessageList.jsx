@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 
-function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFriend, messages, setMessages, messagesPaginationPage, setMessagesPaginationPage }) { // Removed scrollToBottom prop
+function MessageList({ updatingSelectedFriendStatusRef, isTyping, messageContainerRef, messagesEndRef, selectedFriend, messages, setMessages, messagesPaginationPage, setMessagesPaginationPage }) { // Removed scrollToBottom prop
 	const navigate = useNavigate(); // Get navigate function
 	const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -28,8 +28,22 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 	// Fetch messages when selectedFriend changes
 	useEffect(() => {
 		const fetchMessages = async () => {
+
+			if (updatingSelectedFriendStatusRef.current) {
+				updatingSelectedFriendStatusRef.current = false;
+				return
+			}
+
 			if (!selectedFriend?.id) {
-				setMessages([]); // Clear messages if no friend selected or no current user ID
+				setMessages([]);
+				return;
+			}
+
+			if (!messagesPaginationPage || messagesPaginationPage === 0) {
+
+				console.log(messagesPaginationPage);
+				console.log(11111);
+				setMessages([]);
 				return;
 			}
 
@@ -52,7 +66,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 					const data = await response.json();
 					// API returns newest first, reverse for display order (oldest first)
 					// API returns newest first, which is what flex-col-reverse needs
-					setMessages(Array.isArray(data) ? [...messages, ...data] : []);
+					setMessages((prevMessages) => (Array.isArray(data) ? [...prevMessages, ...data] : [...prevMessages]));
 					console.log("data fetched");
 
 				} else if (response.status === 401) {
@@ -74,10 +88,11 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 		};
 
 		fetchMessages();
-	}, [selectedFriend, messagesPaginationPage, setMessages, navigate]);
+	}, [selectedFriend, messagesPaginationPage, setMessages, navigate, updatingSelectedFriendStatusRef]);
 
 	// Callback for Intersection Observer
 	const handleObserver = useCallback((entries) => {
+
 		const target = entries[0];
 		if (target.isIntersecting) {
 			console.log("Oldest message marker is visible!");
@@ -85,7 +100,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 			setTimeout(() => {
 				setMessagesPaginationPage((prev) => (prev + 1));
 				setIsOldestMessageInView(false);
-			}, 1000);
+			}, 500);
 			// Optional: Unobserve after first intersection if needed
 			// if (observer.current && oldestMessageViewRef.current) {
 			// 	observer.current.unobserve(oldestMessageViewRef.current);
@@ -93,12 +108,13 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 		} else {
 			// Optional: Set back to false if it scrolls out of view
 			console.log("Oldest message marker is not visible!");
-			// setIsOldestMessageInView(true);
+			setIsOldestMessageInView(false);
 		}
 	}, [setMessagesPaginationPage]);
 
 	// Effect to setup Intersection Observer
 	useEffect(() => {
+
 		// Ensure container ref is available
 		if (!messageContainerRef.current) {
 			console.warn("Message container ref not available for observer setup.");
@@ -133,7 +149,7 @@ function MessageList({ isTyping, messageContainerRef, messagesEndRef, selectedFr
 			}
 		};
 		// Dependencies: Re-run if container, target ref, or callback changes
-	}, [messageContainerRef, oldestMessageViewRef, handleObserver]);
+	}, [messageContainerRef, oldestMessageViewRef, handleObserver, selectedFriend]);
 
 
 

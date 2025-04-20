@@ -14,7 +14,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 		}
 
 		setMessages([]);
-		setMessagesPaginationPage(1);
+		setMessagesPaginationPage(0);
 		setSelectedFriend(user);
 	}
 
