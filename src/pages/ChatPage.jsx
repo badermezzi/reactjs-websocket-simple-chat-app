@@ -198,7 +198,10 @@ function ChatPage() {
 					}
 				} else if (message.type === 'user_online') {
 					// Handle user online status
-					setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: true }));
+
+					if (selectedFriendRef.current?.id === message?.userId) {
+						setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: true }));
+					}
 
 					setDisplayedUsers(prevUsers =>
 						prevUsers.map(user =>
@@ -207,7 +210,11 @@ function ChatPage() {
 					);
 				} else if (message.type === 'user_offline') {
 					// Handle user offline status
-					setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: false }));
+
+					if (selectedFriendRef.current?.id === message?.userId) {
+						setSelectedFriend(selectedFriend => ({ ...selectedFriend, isOnline: false }));
+					}
+
 
 					setDisplayedUsers(prevUsers =>
 						prevUsers.map(user =>

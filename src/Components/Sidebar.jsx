@@ -9,7 +9,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 
 	function handleOnSelectFriend(user) {
 
-		if (user === selectedFriend) {
+		if (user?.id === selectedFriend?.id || !user?.id) {
 			return
 		}
 
