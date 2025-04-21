@@ -4,6 +4,7 @@ import Sidebar from '../Components/Sidebar'; // Import the new sidebar component
 import ChatAreaHeader from '../Components/ChatAreaHeader'; // Import the new chat area header component
 import MessageList from '../Components/MessageList'; // Import the new message list component
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
+import IncomingCallBar from '../Components/IncomingCallBar'; // Import the new incoming call bar component
 function ChatPage() {
 
 	const updatingSelectedFriendStatusRef = useRef(false);
@@ -32,6 +33,7 @@ function ChatPage() {
 	const [showScrollButton, setShowScrollButton] = useState(false);
 	const [inputText, setInputText] = useState(""); // State for the message input
 	const [showPicker, setShowPicker] = useState(false); // State for emoji picker visibility
+	const [showIncomingCall, setShowIncomingCall] = useState(true); // State to show/hide incoming call bar (true for testing)
 
 
 	const messagesEndRef = useRef(null); // Ref for the bottom element (for scrolling to)
@@ -257,6 +259,17 @@ function ChatPage() {
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
+			{/* Modal Placeholder */}
+			{/* Conditionally render IncomingCallBar */}
+			{showIncomingCall && (
+				<IncomingCallBar
+					callerUsername="Olivia" // Placeholder
+					callerAvatarUrl="https://i.pravatar.cc/150?img=38" // Placeholder
+					onHangup={() => { console.log("Hangup clicked"); setShowIncomingCall(false); }} // Placeholder action
+					onAnswer={() => { console.log("Answer clicked"); setShowIncomingCall(false); }} // Placeholder action
+				/>
+			)}
+			{/*  "here for example"  */}
 			<ChatHeader currentUser={currentUser} />
 			<div className='flex flex-grow overflow-hidden'>
 
