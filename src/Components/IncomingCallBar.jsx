@@ -22,11 +22,11 @@ const VideoAnswerIcon = () => (
 
 function IncomingCallBar({ callerUsername, callerAvatarUrl, onHangup, onAnswer }) {
 	return (
-		<div className="absolute top-0 left-1/2 -translate-x-1/2 w-65 h-16 mt-2 bg-[#0D1216]/70 z-50 text-white p-2 px-4 rounded-2xl shadow-lg border border-gray-500/10 flex items-center justify-between">
+		<div className="animate-pulse absolute top-0 left-1/2 -translate-x-1/2 w-65 h-16 mt-2 bg-[#0D1216]/70 z-50 text-white p-2 px-4 rounded-2xl shadow-lg border border-gray-500/10 flex items-center justify-between">
 			{/* Left: Hangup Button */}
 			<button
 				onClick={onHangup}
-				className="p-[6px] rounded-xl bg-red-600/90  hover:bg-red-700 border border-gray-500/20 text-white cursor-pointer flex-shrink-0"
+				className="p-[6px] rounded-xl bg-red-600/90  hover:bg-red-700 border border-gray-500/20 text-white cursor-pointer flex-shrink-0 "
 				aria-label="Hang up call"
 			>
 				<HangupIcon />
@@ -41,13 +41,13 @@ function IncomingCallBar({ callerUsername, callerAvatarUrl, onHangup, onAnswer }
 					className="h-13 w-13 rounded-full flex-shrink-0 border border-gray-400/50 shadow-black "
 				/>
 				{/* Middle-Right: Username */}
-				<span className="font-bold text-lh ">{callerUsername || 'Incoming Call'}</span> {/* Use prop or default */}
+				<span className="font-semibold text-sm ">{callerUsername || 'Incoming Call'}</span> {/* Use prop or default */}
 			</div>
 
 			{/* Right: Answer Button */}
 			<button
 				onClick={onAnswer}
-				className="p-[6px] rounded-xl bg-green-500/90 hover:bg-green-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0  animate-pulse"
+				className="p-[6px] rounded-xl bg-green-500/90 hover:bg-green-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0  "
 				aria-label="Answer call"
 			>
 				<AnswerIcon />
