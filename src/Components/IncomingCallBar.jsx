@@ -22,11 +22,11 @@ const VideoAnswerIcon = () => (
 
 function IncomingCallBar({ callerUsername, callerAvatarUrl, onHangup, onAnswer }) {
 	return (
-		<div className=" absolute top-0 left-1/2 -translate-x-1/2 w-65 h-16 mt-2 bg-[#0D1216]/70 z-50 text-white p-2 px-4 rounded-2xl shadow-lg border border-gray-500/10 flex items-center justify-between">
+		<div className="animate-pulse absolute top-0 left-1/2 -translate-x-1/2 w-65 h-16 mt-2 bg-[#0D1216]/70 z-50 text-white p-2 px-4 rounded-2xl shadow-lg border border-gray-500/10 flex items-center justify-between">
 			{/* Left: Hangup Button */}
 			<button
 				onClick={onHangup}
-				className="p-[6px] rounded-xl bg-red-600/90  hover:bg-red-700 border border-gray-500/20 text-white cursor-pointer flex-shrink-0 animate-pulse"
+				className="p-[6px] rounded-xl bg-red-600/90  hover:bg-red-700 border border-gray-500/20 text-white cursor-pointer flex-shrink-0 "
 				aria-label="Hang up call"
 			>
 				<HangupIcon />
@@ -47,7 +47,7 @@ function IncomingCallBar({ callerUsername, callerAvatarUrl, onHangup, onAnswer }
 			{/* Right: Answer Button */}
 			<button
 				onClick={onAnswer}
-				className="p-[6px] rounded-xl bg-green-500/90 hover:bg-green-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0  animate-pulse"
+				className="p-[6px] rounded-xl bg-green-500/90 hover:bg-green-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0  "
 				aria-label="Answer call"
 			>
 				<AnswerIcon />

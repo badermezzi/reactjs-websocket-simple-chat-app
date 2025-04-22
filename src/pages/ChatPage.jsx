@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'; // Import framer-motion
 import ChatHeader from '../Components/ChatHeader'; // Import the new header component
 import Sidebar from '../Components/Sidebar'; // Import the new sidebar component
 import ChatAreaHeader from '../Components/ChatAreaHeader'; // Import the new chat area header component
 import MessageList from '../Components/MessageList'; // Import the new message list component
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 import IncomingCallBar from '../Components/IncomingCallBar'; // Import the new incoming call bar component
+
 function ChatPage() {
 
 	const updatingSelectedFriendStatusRef = useRef(false);
@@ -260,15 +262,26 @@ function ChatPage() {
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
 			{/* Modal Placeholder */}
-			{/* Conditionally render IncomingCallBar */}
-			{showIncomingCall && (
-				<IncomingCallBar
-					callerUsername="Olivia" // Placeholder
-					callerAvatarUrl="https://i.pravatar.cc/150?img=38" // Placeholder
-					onHangup={() => { console.log("Hangup clicked"); setShowIncomingCall(false); }} // Placeholder action
-					onAnswer={() => { console.log("Answer clicked"); setShowIncomingCall(false); }} // Placeholder action
-				/>
-			)}
+			{/* Conditionally render IncomingCallBar with Animation */}
+			<AnimatePresence>
+				{showIncomingCall && (
+					<motion.div
+						initial={{ opacity: 0, y: -50 }} // Start hidden above
+						animate={{ opacity: 1, y: 0 }}    // Animate to visible at original position
+						exit={{ opacity: 0, y: -50 }}     // Animate out by sliding up
+						transition={{ duration: 0.3 }}   // Animation duration
+						// Apply the same absolute positioning wrapper logic here
+						className="absolute top-0 left-1/2 -translate-x-1/2 z-50 w-65" // Keep positioning logic on the motion div
+					>
+						<IncomingCallBar
+							callerUsername="Olivia" // Placeholder
+							callerAvatarUrl="https://i.pravatar.cc/150?img=38" // Placeholder - Note: User changed this from 27
+							onHangup={() => { console.log("Hangup clicked"); setShowIncomingCall(false); }} // Placeholder action
+							onAnswer={() => { console.log("Answer clicked"); setShowIncomingCall(false); }} // Placeholder action
+						/>
+					</motion.div>
+				)}
+			</AnimatePresence>
 			{/*  "here for example"  */}
 			<ChatHeader currentUser={currentUser} />
 			<div className='flex flex-grow overflow-hidden'>
