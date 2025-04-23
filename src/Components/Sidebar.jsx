@@ -51,7 +51,7 @@ function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, se
 									<div className="font-semibold text-sm">{user.username}</div>
 									{/* Placeholder for last message - needs real data */}
 									<div className="text-xs text-gray-400 truncate">
-										{/* {isCalling && user?.id === calleeIdRef.current && <p className='text-green-500/90 ' >Calling...</p>} Display status text */}
+										{isCalling && user?.id === calleeIdRef.current && <p className='text-green-500/90 ' >Calling...</p>}
 									</div>
 								</div>
 

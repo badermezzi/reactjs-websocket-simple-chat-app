@@ -284,7 +284,7 @@ function ChatPage() {
 	const calleeIdRef = useRef(null);
 
 	// Function to play the sound
-	const playSound = useCallback(() => { // Using useCallback for potential optimization
+	const playSound = useCallback(() => {
 		const audio = audioRef.current;
 		audio.loop = true;
 		const playPromise = audio.play();
@@ -292,18 +292,16 @@ function ChatPage() {
 		if (playPromise !== undefined) {
 			playPromise.catch(error => {
 				console.error("Audio play failed:", error);
-				// Auto-play was prevented. You might need to guide the user
-				// to interact with the page first (e.g., click a button).
 			});
 		}
-	}, []); // Dependency array includes audio instance
+	}, []);
 
 	const stopSound = useCallback(() => {
 		const audio = audioRef.current;
 		audio.loop = false;
 		audio.pause();
-		audio.currentTime = 0; // Reset time to the beginning
-	}, []); // Depends on the same audio object
+		audio.currentTime = 0;
+	}, []);
 
 	const config = {
 		iceServers: [
