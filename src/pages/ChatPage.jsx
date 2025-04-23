@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion'; // Import framer-motion
 import ChatHeader from '../Components/ChatHeader'; // Import the new header component
 import Sidebar from '../Components/Sidebar'; // Import the new sidebar component
@@ -7,8 +7,13 @@ import MessageList from '../Components/MessageList'; // Import the new message l
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 import IncomingCallBar from '../Components/IncomingCallBar'; // Import the new incoming call bar component
 import useWebRTC from '../webRTC utils/useWebRTC';
+import { base64Sound } from '../utils/sound';
 
 function ChatPage() {
+
+	const audioRef = useRef(new Audio(base64Sound));
+
+
 
 	const updatingSelectedFriendStatusRef = useRef(false);
 
@@ -43,8 +48,8 @@ function ChatPage() {
 	const messageContainerRef = useRef(null); // Ref for the scrollable container itself
 	const ws = useRef(null); // Ref to hold the WebSocket instance
 
-	const audioRef = useRef(null); // Ref for the ringing audio element
-	const [blobUrl, setBlobUrl] = useState(null); // State for the audio blob URL
+
+
 
 
 
@@ -103,37 +108,15 @@ function ChatPage() {
 			}
 		};
 
-		let audioObjectUrl = null;
-		const fetchAudio = async () => {
-			try {
-				const response = await fetch('/FaceTime_calling_sound_effect.mp3');
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				const blob = await response.blob();
-				const objectUrl = URL.createObjectURL(blob);
-				setBlobUrl(objectUrl);
-				// Return the URL for cleanup
-				return objectUrl;
-			} catch (error) {
-				console.error('Error fetching or processing audio:', error);
-				return null; // Indicate failure
-			}
-		};
+		const audio = audioRef.current;
 
 		fetchUsers(); // Call the user fetch function
 
-		fetchAudio().then(url => {
-			audioObjectUrl = url; // Store the URL for cleanup
-		});
+
 
 		// Cleanup function
 		return () => {
-			if (audioObjectUrl) {
-				console.log('Revoking audio object URL:', audioObjectUrl);
-				URL.revokeObjectURL(audioObjectUrl);
-				setBlobUrl(null); // Clear state on unmount
-			}
+			audio.loop = false;
 		};
 	}, []); // Empty dependency array means this runs once on mount
 
@@ -164,6 +147,8 @@ function ChatPage() {
 		setDisplayedUsers(filteredUsers);
 
 	}, [onlineUsers, offlineUsers]); // Re-run when fetched data changes
+
+
 
 	// Effect to establish WebSocket connection
 	useEffect(() => {
@@ -298,6 +283,27 @@ function ChatPage() {
 
 	const calleeIdRef = useRef(null);
 
+	// Function to play the sound
+	const playSound = useCallback(() => { // Using useCallback for potential optimization
+		const audio = audioRef.current;
+		audio.loop = true;
+		const playPromise = audio.play();
+
+		if (playPromise !== undefined) {
+			playPromise.catch(error => {
+				console.error("Audio play failed:", error);
+				// Auto-play was prevented. You might need to guide the user
+				// to interact with the page first (e.g., click a button).
+			});
+		}
+	}, []); // Dependency array includes audio instance
+
+	const stopSound = useCallback(() => {
+		const audio = audioRef.current;
+		audio.loop = false;
+		audio.pause();
+		audio.currentTime = 0; // Reset time to the beginning
+	}, []); // Depends on the same audio object
 
 	const config = {
 		iceServers: [
@@ -364,8 +370,8 @@ function ChatPage() {
 					setPreparingCall(false);
 					setIsCalling(true);
 					// Play ringing sound
-					console.log('Attempting to play audio:', { blobUrl, audioRef: audioRef.current });
-					audioRef.current?.play().catch(e => console.error("Audio play failed:", e));
+					console.log('Attempting to play audio///////////');
+					playSound();
 				};
 
 			}
@@ -398,11 +404,7 @@ function ChatPage() {
 		calleeIdRef.current = null;
 		setIsCalling(false);
 		// Stop ringing sound
-		if (audioRef.current) {
-			console.log('Attempting to pause audio:', { audioRef: audioRef.current });
-			audioRef.current.pause();
-			audioRef.current.currentTime = 0;
-		}
+		stopSound();
 
 	}
 
@@ -411,8 +413,6 @@ function ChatPage() {
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
-			{/* Audio element for ringing sound */}
-			<audio ref={audioRef} src={blobUrl || undefined} loop preload="none" />
 			{/* CallingBar with Animation */}
 			<AnimatePresence>
 				{isCalling && calleeIdRef.current !== selectedFriend?.id && (

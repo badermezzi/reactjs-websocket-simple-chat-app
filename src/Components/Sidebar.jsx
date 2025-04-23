@@ -1,11 +1,7 @@
 import React from 'react';
 
 function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
-	/*
-		// State and effects moved to ChatPage.jsx
-	*/
 
-	// const friends = [1, 2, 3, 4, 5]; // Removed placeholder
 
 	function handleOnSelectFriend(user) {
 
