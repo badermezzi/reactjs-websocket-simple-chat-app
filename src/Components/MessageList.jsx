@@ -206,10 +206,8 @@ function MessageList({ updatingSelectedFriendStatusRef, isTyping, messageContain
 					className="flex justify-center mb-3" // Aligned left
 
 				>
-					<div className=" px-4 py-2 max-w-xs lg:max-w-md text-white/90">
-						<div className="flex space-x-1 items-center h-5">
-							<span className="block h-4 w-1 rounded-full bg-gray-300 animate-spin" ></span>
-						</div>
+					<div className="flex items-center justify-center p-2">
+						<div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
 					</div>
 				</div>
 			)}

@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
+function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
 	/*
 		// State and effects moved to ChatPage.jsx
 	*/
@@ -42,7 +42,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 					displayedUsers.map((user) => (
 						<li onClick={() => handleOnSelectFriend(user)} key={user.id} className="mb-2 my-0">
 							{/* Friend Item Structure */}
-							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
+							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${isCalling && user?.id === calleeIdRef.current ? 'bg-green-500/10 shadow border border-gray-500/10' : user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
 								{/* Left Block: Avatar */}
 								<img
 									src={`https://i.pravatar.cc/150?img=${user.id}`} // Use id for consistent avatar
@@ -55,7 +55,7 @@ function Sidebar({ selectedFriend, setSelectedFriend, setMessages, setMessagesPa
 									<div className="font-semibold text-sm">{user.username}</div>
 									{/* Placeholder for last message - needs real data */}
 									<div className="text-xs text-gray-400 truncate">
-										{user.isOnline ? 'Online' : 'Offline'} {/* Display status text */}
+										{/* {isCalling && user?.id === calleeIdRef.current && <p className='text-green-500/90 ' >Calling...</p>} Display status text */}
 									</div>
 								</div>
 

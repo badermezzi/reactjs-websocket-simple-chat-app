@@ -6,6 +6,7 @@ import ChatAreaHeader from '../Components/ChatAreaHeader'; // Import the new cha
 import MessageList from '../Components/MessageList'; // Import the new message list component
 import MessageInput from '../Components/MessageInput'; // Import the new message input component
 import IncomingCallBar from '../Components/IncomingCallBar'; // Import the new incoming call bar component
+import useWebRTC from '../webRTC utils/useWebRTC';
 
 function ChatPage() {
 
@@ -258,12 +259,150 @@ function ChatPage() {
 	};
 
 
+	/////////////////////////// -- webRTC -- ////////////////////////////
+
+	// => callee 'calling' 
+
+	const [isCalling, setIsCalling] = useState(false);
+	const [preparingCall, setPreparingCall] = useState(false);
+
+	const calleeIdRef = useRef(null);
+
+
+	const config = {
+		iceServers: [
+			{ urls: 'stun:stun.l.google.com:19302' }
+		]
+	};
+
+	const {
+		// State
+		remoteStream,
+		connectionState,
+		callState,
+		isAudioMuted,
+		isVideoMuted,
+		error,
+		// Actions
+		initiateCall,
+		answerCall,
+		hangUp,
+		toggleAudioMute,
+		toggleVideoMute,
+	} = useWebRTC(ws.current, currentUserId, config); // Pass the ref object itself
+
+	// Ref to store previous state values for comparison
+	const prevStateRef = useRef({
+		remoteStream,
+		connectionState,
+		callState,
+		isAudioMuted,
+		isVideoMuted,
+		error,
+	});
+
+	const isInitialMountRef = useRef(true); // Ref to track initial mount
+
+	// Effect to log specific state changes from useWebRTC
+	useEffect(() => {
+		if (isInitialMountRef.current) {
+			// On initial mount, log all current states
+			console.log('WebRTC Initial State:', {
+				remoteStream,
+				connectionState,
+				callState,
+				isAudioMuted,
+				isVideoMuted,
+				error,
+			});
+			isInitialMountRef.current = false; // Set to false after first run
+		} else {
+			// On subsequent renders, compare and log only changes
+			const previousState = prevStateRef.current;
+
+			if (previousState.remoteStream !== remoteStream) {
+				console.log('WebRTC Update: remoteStream changed:', remoteStream);
+			}
+			if (previousState.connectionState !== connectionState) {
+				console.log('WebRTC Update: connectionState changed:', connectionState);
+			}
+			if (previousState.callState !== callState) {
+				console.log('WebRTC Update: callState changed:', callState);
+
+				if (callState === "calling") {
+					console.log("calling...");
+					setPreparingCall(false);
+					setIsCalling(true);
+				};
+
+			}
+			if (previousState.isAudioMuted !== isAudioMuted) {
+				console.log('WebRTC Update: isAudioMuted changed:', isAudioMuted);
+			}
+			if (previousState.isVideoMuted !== isVideoMuted) {
+				console.log('WebRTC Update: isVideoMuted changed:', isVideoMuted);
+			}
+			// Use JSON stringify for error comparison as error objects might change reference
+			if (JSON.stringify(previousState.error) !== JSON.stringify(error)) {
+				console.error('WebRTC Update: error changed:', error);
+			}
+		}
+
+		// Always update the ref with the current values for the next comparison
+		prevStateRef.current = {
+			remoteStream,
+			connectionState,
+			callState,
+			isAudioMuted,
+			isVideoMuted,
+			error,
+		};
+	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error]);
+
+
+	function hangupHandler() {
+		hangUp();
+		calleeIdRef.current = null;
+		setIsCalling(false);
+
+	}
+
+	/////////////////////////////////////////////////////////////////////
+
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
-			{/* Modal Placeholder */}
-			{/* Conditionally render IncomingCallBar with Animation */}
+			{/* CallingBar with Animation */}
 			<AnimatePresence>
+				{isCalling && calleeIdRef.current !== selectedFriend?.id && (
+					<motion.div
+						initial={{ opacity: 0, y: -50 }} // Start hidden above
+						animate={{ opacity: 1, y: 0 }}    // Animate to visible at original position
+						exit={{ opacity: 0, y: -50 }}     // Animate out by sliding up
+						transition={{ duration: 0.3 }}   // Animation duration
+						// Apply the same absolute positioning wrapper logic here
+						className="absolute top-0 left-1/2 -translate-x-1/2 z-50 w-65" // Keep positioning logic on the motion div
+					>
+						<div className=" absolute top-0 left-1/2 -translate-x-1/2 w-55 h-16 mt-2 bg-[#0D1216]/70 z-50 text-white p-2 px-4 rounded-2xl shadow-lg border border-gray-500/10 flex items-center justify-between">
+							<p className="p-2  mx-3  text-green-500/90 animate-pulse ">
+								Calling...
+							</p>
+
+							<button
+								onClick={hangupHandler}
+								className="p-[6px]  rounded-full bg-red-600/90  hover:bg-red-700 border border-gray-500/20 text-white cursor-pointer flex-shrink-0 "
+								aria-label="Hang up call"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 rotate-135">
+									<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+								</svg>
+							</button>
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+			{/* IncomingCallBar with Animation */}
+			{/* <AnimatePresence>
 				{showIncomingCall && (
 					<motion.div
 						initial={{ opacity: 0, y: -50 }} // Start hidden above
@@ -281,13 +420,13 @@ function ChatPage() {
 						/>
 					</motion.div>
 				)}
-			</AnimatePresence>
-			{/*  "here for example"  */}
+			</AnimatePresence> */}
 			<ChatHeader currentUser={currentUser} />
 			<div className='flex flex-grow overflow-hidden'>
 
 				<Sidebar
-
+					calleeIdRef={calleeIdRef}
+					isCalling={isCalling}
 					setMessagesPaginationPage={setMessagesPaginationPage}
 
 					messages={messages}
@@ -298,7 +437,7 @@ function ChatPage() {
 				/>
 
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
-					<ChatAreaHeader ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
+					<ChatAreaHeader hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
 						messagesPaginationPage={messagesPaginationPage}
 						setMessagesPaginationPage={setMessagesPaginationPage}
