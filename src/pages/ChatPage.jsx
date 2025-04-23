@@ -43,6 +43,9 @@ function ChatPage() {
 	const messageContainerRef = useRef(null); // Ref for the scrollable container itself
 	const ws = useRef(null); // Ref to hold the WebSocket instance
 
+	const audioRef = useRef(null); // Ref for the ringing audio element
+	const [blobUrl, setBlobUrl] = useState(null); // State for the audio blob URL
+
 
 
 	const scrollToBottom = () => {
@@ -68,7 +71,7 @@ function ChatPage() {
 	}, []); // Empty dependency array, listener attached once
 
 
-	// Effect to fetch initial user lists
+	// Effect to fetch initial user lists and ringing audio
 	useEffect(() => {
 		const fetchUsers = async () => {
 			// Fetch Online Users
@@ -80,11 +83,9 @@ function ChatPage() {
 					console.log('Fetched online users:', onlineData.online_users);
 				} else {
 					console.error('Failed to fetch online users:', onlineResponse.statusText);
-					// toast.error('Could not load online users list.'); // Consider adding toast back if needed
 				}
 			} catch (error) {
 				console.error('Error fetching online users:', error);
-				// toast.error('Network error fetching online users.');
 			}
 
 			// Fetch Offline Users
@@ -96,15 +97,44 @@ function ChatPage() {
 					console.log('Fetched offline users:', offlineData.offline_users);
 				} else {
 					console.error('Failed to fetch offline users:', offlineResponse.statusText);
-					// toast.error('Could not load offline users list.');
 				}
 			} catch (error) {
 				console.error('Error fetching offline users:', error);
-				// toast.error('Network error fetching offline users.');
 			}
 		};
 
-		fetchUsers(); // Call the combined fetch function
+		let audioObjectUrl = null;
+		const fetchAudio = async () => {
+			try {
+				const response = await fetch('/FaceTime_calling_sound_effect.mp3');
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				const blob = await response.blob();
+				const objectUrl = URL.createObjectURL(blob);
+				setBlobUrl(objectUrl);
+				// Return the URL for cleanup
+				return objectUrl;
+			} catch (error) {
+				console.error('Error fetching or processing audio:', error);
+				return null; // Indicate failure
+			}
+		};
+
+		fetchUsers(); // Call the user fetch function
+
+		fetchAudio().then(url => {
+			audioObjectUrl = url; // Store the URL for cleanup
+		});
+
+		// Cleanup function
+		return () => {
+			if (audioObjectUrl) {
+				console.log('Revoking audio object URL:', audioObjectUrl);
+				URL.revokeObjectURL(audioObjectUrl);
+				setBlobUrl(null); // Clear state on unmount
+			}
+		};
 	}, []); // Empty dependency array means this runs once on mount
 
 	// Effect to combine and filter users when onlineUsers or offlineUsers change
@@ -333,6 +363,9 @@ function ChatPage() {
 					console.log("calling...");
 					setPreparingCall(false);
 					setIsCalling(true);
+					// Play ringing sound
+					console.log('Attempting to play audio:', { blobUrl, audioRef: audioRef.current });
+					audioRef.current?.play().catch(e => console.error("Audio play failed:", e));
 				};
 
 			}
@@ -364,6 +397,12 @@ function ChatPage() {
 		hangUp();
 		calleeIdRef.current = null;
 		setIsCalling(false);
+		// Stop ringing sound
+		if (audioRef.current) {
+			console.log('Attempting to pause audio:', { audioRef: audioRef.current });
+			audioRef.current.pause();
+			audioRef.current.currentTime = 0;
+		}
 
 	}
 
@@ -372,6 +411,8 @@ function ChatPage() {
 
 	return (
 		<div className='h-screen bg-[#11161C] flex flex-col'>
+			{/* Audio element for ringing sound */}
+			<audio ref={audioRef} src={blobUrl || undefined} loop preload="none" />
 			{/* CallingBar with Animation */}
 			<AnimatePresence>
 				{isCalling && calleeIdRef.current !== selectedFriend?.id && (
