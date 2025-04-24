@@ -2,7 +2,7 @@ import React from 'react';
 import toast from 'react-hot-toast';
 
 
-function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, initiateCall, preparingCall, setPreparingCall, isCalling, setIsCalling, hangUp }) {
+function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, initiateCall, preparingCall, setPreparingCall, isCalling }) {
 
 	async function startVideoCallHandler(receiverId) {
 		calleeIdRef.current = receiverId;

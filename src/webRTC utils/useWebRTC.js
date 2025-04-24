@@ -27,6 +27,8 @@ function useWebRTC(ws, senderId, config) {
 	const [isAudioMuted, setIsAudioMuted] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
 	const [error, setError] = useState(null);
+	const [callerId, setCallerId] = useState(null); // State to store the caller's ID
+
 
 
 	// Define hangUp first as it might be needed by others or useEffect
@@ -67,6 +69,8 @@ function useWebRTC(ws, senderId, config) {
 		setIsAudioMuted(false);
 		setIsVideoMuted(false);
 		setError(null);
+		setCallerId(null); // Reset caller ID on hangup
+
 		candidateQueue.current = [];
 		receiverIdRef.current = null;
 		isNegotiating.current = false;
@@ -461,6 +465,8 @@ function useWebRTC(ws, senderId, config) {
 
 						try {
 							receiverIdRef.current = message.senderId; // Store sender as the receiver for answer/candidates
+							setCallerId(message.senderId); // Set the caller ID state
+
 
 							await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(message.offer));
 							console.log('Remote description (offer) set.');
@@ -567,7 +573,9 @@ function useWebRTC(ws, senderId, config) {
 		callState,
 		isAudioMuted,
 		isVideoMuted,
+		callerId, // Expose callerId state
 		error,
+
 		// Actions
 		initiateCall,
 		answerCall,

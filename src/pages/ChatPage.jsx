@@ -41,7 +41,6 @@ function ChatPage() {
 	const [showScrollButton, setShowScrollButton] = useState(false);
 	const [inputText, setInputText] = useState(""); // State for the message input
 	const [showPicker, setShowPicker] = useState(false); // State for emoji picker visibility
-	const [showIncomingCall, setShowIncomingCall] = useState(true); // State to show/hide incoming call bar (true for testing)
 
 
 	const messagesEndRef = useRef(null); // Ref for the bottom element (for scrolling to)
@@ -276,12 +275,16 @@ function ChatPage() {
 
 	/////////////////////////// -- webRTC -- ////////////////////////////
 
-	// => callee 'calling' 
 
 	const [isCalling, setIsCalling] = useState(false);
 	const [preparingCall, setPreparingCall] = useState(false);
 
 	const calleeIdRef = useRef(null);
+
+	const [isReceivingCall, setIsReceivingCall] = useState(false);
+
+	const socketCallerObjRef = useRef(null);
+
 
 	// Function to play the sound
 	const playSound = useCallback(() => {
@@ -311,6 +314,7 @@ function ChatPage() {
 
 	const {
 		// State
+		callerId,
 		remoteStream,
 		connectionState,
 		callState,
@@ -369,8 +373,36 @@ function ChatPage() {
 					setIsCalling(true);
 					// Play ringing sound
 					console.log('Attempting to play audio///////////');
+					// playSound();
+				} else if (callState === "receiving") {
+
+					console.log("receiving...");
+
+					// Play ringing sound
+					console.log('Attempting to play audio///////////');
 					playSound();
-				};
+
+					setIsReceivingCall(true);
+
+					socketCallerObjRef.current = displayedUsers.find((user) => (user.id === callerId));
+
+
+				} else if (callState === "idle") {
+
+					console.log("idle");
+
+					calleeIdRef.current = null;
+
+					// Play ringing sound
+					console.log('Attempting to stop audio///////////');
+					stopSound();
+
+					setIsReceivingCall(false);
+
+					socketCallerObjRef.current = null;
+
+
+				}
 
 			}
 			if (previousState.isAudioMuted !== isAudioMuted) {
@@ -394,7 +426,8 @@ function ChatPage() {
 			isVideoMuted,
 			error,
 		};
-	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error]);
+	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, onlineUsers, stopSound]);
+
 
 
 	function hangupHandler() {
@@ -403,6 +436,7 @@ function ChatPage() {
 		setIsCalling(false);
 		// Stop ringing sound
 		stopSound();
+
 
 	}
 
@@ -441,8 +475,8 @@ function ChatPage() {
 				)}
 			</AnimatePresence>
 			{/* IncomingCallBar with Animation */}
-			{/* <AnimatePresence>
-				{showIncomingCall && (
+			<AnimatePresence>
+				{isReceivingCall && (
 					<motion.div
 						initial={{ opacity: 0, y: -50 }} // Start hidden above
 						animate={{ opacity: 1, y: 0 }}    // Animate to visible at original position
@@ -452,14 +486,14 @@ function ChatPage() {
 						className="absolute top-0 left-1/2 -translate-x-1/2 z-50 w-65" // Keep positioning logic on the motion div
 					>
 						<IncomingCallBar
-							callerUsername="Olivia" // Placeholder
-							callerAvatarUrl="https://i.pravatar.cc/150?img=38" // Placeholder - Note: User changed this from 27
-							onHangup={() => { console.log("Hangup clicked"); setShowIncomingCall(false); }} // Placeholder action
-							onAnswer={() => { console.log("Answer clicked"); setShowIncomingCall(false); }} // Placeholder action
+							callerUsername={socketCallerObjRef.current?.username} // Placeholder
+							callerAvatarUrl={`https://i.pravatar.cc/150?img=${socketCallerObjRef.current?.id}`} // Placeholder - Note: User changed this from 27
+							onHangup={() => { console.log("Hangup clicked") }} // Placeholder action
+							onAnswer={() => { console.log("Answer clicked") }} // Placeholder action
 						/>
 					</motion.div>
 				)}
-			</AnimatePresence> */}
+			</AnimatePresence>
 			<ChatHeader currentUser={currentUser} />
 			<div className='flex flex-grow overflow-hidden'>
 
