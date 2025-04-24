@@ -9,7 +9,7 @@ function MessageInput({ ws, recipientId, senderId, setMessages, inputText, setIn
 	const typingStopTimerRef = useRef(null);
 	const prevInputTextRef = useRef(inputText); // Ref to track previous input value
 
-	const TYPING_TIMER_DELAY = 500; // Delay in ms for confirmation
+	// const TYPING_TIMER_DELAY = 500; // Delay in ms for confirmation
 
 	// Function to send typing indicators
 	const sendTypingIndicator = (type) => {
@@ -37,23 +37,33 @@ function MessageInput({ ws, recipientId, senderId, setMessages, inputText, setIn
 
 		if (wasPreviouslyEmpty && !isCurrentlyEmpty) {
 			// Changed from empty to non-empty: Schedule typing_start check
-			typingStartTimerRef.current = setTimeout(() => {
-				// Check again after delay if input is still non-empty and start hasn't been sent
-				if (inputText && !isTypingSent) {
-					sendTypingIndicator('typing_start');
-					setIsTypingSent(true);
-				}
-			}, TYPING_TIMER_DELAY);
+			// typingStartTimerRef.current = setTimeout(() => {
+			// 	// Check again after delay if input is still non-empty and start hasn't been sent
+			// 	if (inputText && !isTypingSent) {
+			// 		sendTypingIndicator('typing_start');
+			// 		setIsTypingSent(true);
+			// 	}
+			// }, TYPING_TIMER_DELAY);
+
+			if (inputText && !isTypingSent) {
+				sendTypingIndicator('typing_start');
+				setIsTypingSent(true);
+			}
 
 		} else if (!wasPreviouslyEmpty && isCurrentlyEmpty) {
 			// Changed from non-empty to empty: Schedule typing_stop check
-			typingStopTimerRef.current = setTimeout(() => {
-				// Check again after delay if input is still empty and start *was* sent
-				if (!inputText && isTypingSent) {
-					sendTypingIndicator('typing_stop');
-					setIsTypingSent(false);
-				}
-			}, TYPING_TIMER_DELAY);
+			// typingStopTimerRef.current = setTimeout(() => {
+			// 	// Check again after delay if input is still empty and start *was* sent
+			// 	if (!inputText && isTypingSent) {
+			// 		sendTypingIndicator('typing_stop');
+			// 		setIsTypingSent(false);
+			// 	}
+			// }, TYPING_TIMER_DELAY);
+
+			if (!inputText && isTypingSent) {
+				sendTypingIndicator('typing_stop');
+				setIsTypingSent(false);
+			}
 		}
 
 		// Update previous input ref for the next render
