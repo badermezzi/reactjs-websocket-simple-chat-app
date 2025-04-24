@@ -8,6 +8,7 @@ import MessageInput from '../Components/MessageInput'; // Import the new message
 import IncomingCallBar from '../Components/IncomingCallBar'; // Import the new incoming call bar component
 import useWebRTC from '../webRTC utils/useWebRTC';
 import { base64Sound } from '../utils/sound';
+import toast from 'react-hot-toast';
 
 function ChatPage() {
 
@@ -363,50 +364,66 @@ function ChatPage() {
 			}
 			if (previousState.connectionState !== connectionState) {
 				console.log('WebRTC Update: connectionState changed:', connectionState);
+				// Handle state resets based on connection status
+				if (connectionState === 'connected') {
+					console.log("WebRTC Connection established!");
+					// Call is active, ensure UI reflects this
+					stopSound();
+					setIsReceivingCall(false);
+					setIsCalling(false);
+					setPreparingCall(false); // Ensure preparing state is off
+					// Potentially set setIsCallActive(true) here if you add that state
+				} else if (connectionState === 'disconnected' || connectionState === 'failed' || connectionState === 'closed') {
+					console.log("WebRTC Connection ended/failed.");
+					// Reset states similar to 'idle' when connection drops
+					stopSound();
+					setIsCalling(false);
+					setPreparingCall(false);
+					calleeIdRef.current = null;
+					setIsReceivingCall(false);
+					socketCallerObjRef.current = null;
+					// Potentially set setIsCallActive(false) here
+				}
 			}
 			if (previousState.callState !== callState) {
 				console.log('WebRTC Update: callState changed:', callState);
 
 				if (callState === "calling") {
 					console.log("calling...");
-					setPreparingCall(false);
+					setPreparingCall(false); // Already preparing before this
 					setIsCalling(true);
-					// Play ringing sound
-					console.log('Attempting to play audio///////////');
-					// playSound();
+					// Optional: Start outgoing call sound here if desired
+					// console.log('Attempting to play outgoing call sound');
+					// playSound(); // Or a different sound
 				} else if (callState === "receiving") {
-
 					console.log("receiving...");
-
 					setIsReceivingCall(true);
-
+					setIsCalling(false); // Cannot be calling and receiving
+					setPreparingCall(false); // Should not be preparing
 					// Play ringing sound
-					console.log('Attempting to play audio///////////');
+					console.log('Attempting to play incoming call sound');
 					playSound();
-
+					// Find caller details
 					socketCallerObjRef.current = displayedUsers.find((user) => (user.id === callerId));
-
-
+				} else if (callState === "connected") { // <<<--- ADDED STATE FOR ACTIVE CALL
+					console.log("Call connected!");
+					stopSound(); // Ensure sound stops
+					setIsReceivingCall(false); // Hide incoming bar
+					setIsCalling(false); // Ensure calling indicator is off
+					setPreparingCall(false); // Ensure preparing state is off
+					console.log("00000000000000000000000000 Call connected!");
+					// Potentially set setIsCallActive(true) here
 				} else if (callState === "idle") {
-
-					console.log("idle");
-
+					console.log("Call state is idle");
+					// Reset all call-related states thoroughly
+					stopSound();
 					setIsCalling(false);
 					setPreparingCall(false);
-
 					calleeIdRef.current = null;
-
-					// Play ringing sound
-					console.log('Attempting to stop audio///////////');
-					stopSound();
-
 					setIsReceivingCall(false);
-
 					socketCallerObjRef.current = null;
-
-
+					// Potentially set setIsCallActive(false) here
 				}
-
 			}
 			if (previousState.isAudioMuted !== isAudioMuted) {
 				console.log('WebRTC Update: isAudioMuted changed:', isAudioMuted);
@@ -432,10 +449,32 @@ function ChatPage() {
 	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, displayedUsers, stopSound]);
 
 
-	useEffect(() => {
-		return () => (hangUp())
-	}, [hangUp])
 
+	async function answerVideoCallHandler() {
+		console.log("Answering call from:", callerId);
+		try {
+			// 1. Get local stream first
+			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			const localStream = stream;
+			console.log('Local stream obtained for answering:', localStream);
+
+			// 2. Call the answerCall function from useWebRTC, passing the stream
+			answerCall(localStream);
+
+			// 3. Stop the ringing sound
+			stopSound();
+
+			// 4. Update state to reflect the call is active (not just receiving)
+			setIsReceivingCall(false);
+			// TODO: Consider adding setIsCallActive(true) or similar if needed for UI
+
+		} catch (err) {
+			console.error('Error accessing media devices for answering.', err);
+			toast.error('Failed to access camera and microphone to answer. Please check permissions.');
+			// Optionally hang up if getting media fails
+			hangupHandler(); // Assuming hangupHandler is accessible and appropriate here
+		}
+	};
 
 	function hangupHandler() {
 		hangUp();
@@ -496,7 +535,7 @@ function ChatPage() {
 							callerUsername={socketCallerObjRef.current?.username} // Placeholder
 							callerAvatarUrl={`https://i.pravatar.cc/150?img=${socketCallerObjRef.current?.id}`} // Placeholder - Note: User changed this from 27
 							onHangup={hangupHandler} // Placeholder action
-							onAnswer={() => { console.log("Answer clicked") }} // Placeholder action
+							onAnswer={answerVideoCallHandler} // Pass the actual handler
 						/>
 					</motion.div>
 				)}
