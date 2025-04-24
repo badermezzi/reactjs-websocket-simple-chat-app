@@ -378,11 +378,11 @@ function ChatPage() {
 
 					console.log("receiving...");
 
+					setIsReceivingCall(true);
+
 					// Play ringing sound
 					console.log('Attempting to play audio///////////');
 					playSound();
-
-					setIsReceivingCall(true);
 
 					socketCallerObjRef.current = displayedUsers.find((user) => (user.id === callerId));
 
@@ -390,6 +390,9 @@ function ChatPage() {
 				} else if (callState === "idle") {
 
 					console.log("idle");
+
+					setIsCalling(false);
+					setPreparingCall(false);
 
 					calleeIdRef.current = null;
 
@@ -426,8 +429,12 @@ function ChatPage() {
 			isVideoMuted,
 			error,
 		};
-	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, onlineUsers, stopSound]);
+	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, displayedUsers, stopSound]);
 
+
+	useEffect(() => {
+		return () => (hangUp())
+	}, [hangUp])
 
 
 	function hangupHandler() {
@@ -488,7 +495,7 @@ function ChatPage() {
 						<IncomingCallBar
 							callerUsername={socketCallerObjRef.current?.username} // Placeholder
 							callerAvatarUrl={`https://i.pravatar.cc/150?img=${socketCallerObjRef.current?.id}`} // Placeholder - Note: User changed this from 27
-							onHangup={() => { console.log("Hangup clicked") }} // Placeholder action
+							onHangup={hangupHandler} // Placeholder action
 							onAnswer={() => { console.log("Answer clicked") }} // Placeholder action
 						/>
 					</motion.div>
@@ -498,6 +505,8 @@ function ChatPage() {
 			<div className='flex flex-grow overflow-hidden'>
 
 				<Sidebar
+					callerId={callerId}
+					isReceivingCall={isReceivingCall}
 					calleeIdRef={calleeIdRef}
 					isCalling={isCalling}
 					setMessagesPaginationPage={setMessagesPaginationPage}
@@ -510,7 +519,7 @@ function ChatPage() {
 				/>
 
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
-					<ChatAreaHeader hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
+					<ChatAreaHeader isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
 						messagesPaginationPage={messagesPaginationPage}
 						setMessagesPaginationPage={setMessagesPaginationPage}

@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
+function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
 
 
 	function handleOnSelectFriend(user) {
@@ -38,7 +38,7 @@ function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, se
 					displayedUsers.map((user) => (
 						<li onClick={() => handleOnSelectFriend(user)} key={user.id} className="mb-2 my-0">
 							{/* Friend Item Structure */}
-							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${isCalling && user?.id === calleeIdRef.current ? 'bg-green-500/10 shadow border border-gray-500/10' : user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
+							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${isCalling && user?.id === calleeIdRef.current || isReceivingCall && user?.id === callerId ? 'bg-green-500/10 shadow border border-gray-500/10' : user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
 								{/* Left Block: Avatar */}
 								<img
 									src={`https://i.pravatar.cc/150?img=${user.id}`} // Use id for consistent avatar
@@ -51,7 +51,8 @@ function Sidebar({ calleeIdRef, isCalling, selectedFriend, setSelectedFriend, se
 									<div className="font-semibold text-sm">{user.username}</div>
 									{/* Placeholder for last message - needs real data */}
 									<div className="text-xs text-gray-400 truncate">
-										{isCalling && user?.id === calleeIdRef.current && <p className='text-green-500/90 ' >Calling...</p>}
+										{isCalling && user?.id === calleeIdRef.current && <p className='text-green-500/90 ' >Ringing...</p>}
+										{isReceivingCall && user?.id === callerId && <p className='text-green-500/90 ' >Calling you…</p>}
 									</div>
 								</div>
 

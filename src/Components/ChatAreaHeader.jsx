@@ -2,7 +2,7 @@ import React from 'react';
 import toast from 'react-hot-toast';
 
 
-function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, initiateCall, preparingCall, setPreparingCall, isCalling }) {
+function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, initiateCall, preparingCall, setPreparingCall, isCalling, isReceivingCall }) {
 
 	async function startVideoCallHandler(receiverId) {
 		calleeIdRef.current = receiverId;
@@ -42,7 +42,7 @@ function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelecte
 			{/* Right Side: Call Buttons */}
 			<div className="flex items-center space-x-3"> {/* Buttons group */}
 
-				{!isCalling && !preparingCall &&
+				{!isCalling && !preparingCall && !isReceivingCall &&
 					<>
 						<button className={`p-2 rounded-full ${selectedFriend?.isOnline ? "bg-green-500/90 hover:bg-green-600 cursor-pointer" : "bg-green-500/10 cursor-not-allowed"}  text-white `} disabled={!selectedFriend?.isOnline} >
 							{/* Placeholder SVG for Voice Call */}
