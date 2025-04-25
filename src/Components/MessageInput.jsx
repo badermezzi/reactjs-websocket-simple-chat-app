@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 // Props: ws, recipientId, senderId, messages, setMessages, inputText, setInputText, showPicker, setShowPicker, onEmojiClick
@@ -12,7 +12,7 @@ function MessageInput({ ws, recipientId, senderId, setMessages, inputText, setIn
 	// const TYPING_TIMER_DELAY = 500; // Delay in ms for confirmation
 
 	// Function to send typing indicators
-	const sendTypingIndicator = (type) => {
+	const sendTypingIndicator = useCallback((type) => {
 		if (!ws || ws.readyState !== WebSocket.OPEN || !recipientId) {
 			console.warn("Cannot send typing indicator: WS not ready or no recipient ID.");
 			return;
@@ -24,7 +24,7 @@ function MessageInput({ ws, recipientId, senderId, setMessages, inputText, setIn
 		} catch (error) {
 			console.error(`Failed to send ${type} indicator:`, error);
 		}
-	};
+	}, [recipientId, ws]);
 
 	// Effect to handle typing indicator logic based on input changes
 	useEffect(() => {
@@ -71,10 +71,10 @@ function MessageInput({ ws, recipientId, senderId, setMessages, inputText, setIn
 
 		// Cleanup timers on component unmount or if dependencies change drastically (though only inputText here)
 		return () => {
-			clearTimeout(typingStartTimerRef.current);
-			clearTimeout(typingStopTimerRef.current);
+			// clearTimeout(typingStartTimerRef.current);
+			// clearTimeout(typingStopTimerRef.current);
 		};
-	}, [inputText, isTypingSent, recipientId, ws]); // Dependencies for the effect
+	}, [inputText, isTypingSent, recipientId, ws, sendTypingIndicator]); // Dependencies for the effect
 
 
 	// Handle form submission

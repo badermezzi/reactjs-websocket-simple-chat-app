@@ -556,7 +556,22 @@ function ChatPage() {
 					setSelectedFriend={setSelectedFriend}
 					displayedUsers={displayedUsers} // Pass displayedUsers down
 				/>
+				{/* Container for streams place */}
+				<div className='flex flex-col w-90 mb-5 mt-3 '>
+					{/* <div className='flex flex-col w-165 mb-5 mt-3 '> */}
 
+					<div
+						className='h-full bg-gray-900/20 rounded-2xl w-full shadow-black '
+						style={{
+							backgroundImage: `url('/Call.PNG')`,
+							backgroundSize: 'cover',
+							backgroundPosition: 'center',
+							backgroundRepeat: 'no-repeat',
+							opacity: 0.7, // Keeping existing opacity and border
+							border: "#969696 1px solid",
+						}}
+					></div>
+				</div>
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
 					<ChatAreaHeader isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
