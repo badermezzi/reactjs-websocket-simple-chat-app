@@ -1,27 +1,7 @@
 import React from 'react';
-import toast from 'react-hot-toast';
 
 
-function ChatAreaHeader({ hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, initiateCall, preparingCall, setPreparingCall, isCalling, isReceivingCall }) {
-
-	async function startVideoCallHandler(receiverId) {
-		calleeIdRef.current = receiverId;
-
-		setPreparingCall(true);
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-			const localStream = stream; // Store the stream
-			console.log('Local stream obtained:', localStream);
-
-			// Initiate the call using the obtained stream and receiver ID
-			initiateCall(receiverId, localStream);
-		} catch (err) {
-			console.error('Error accessing media devices.', err);
-			toast.error('Failed to access camera and microphone. Please check permissions.');
-		}
-	};
-
+function ChatAreaHeader({ startVideoCallHandler, hangupHandler, calleeIdRef, selectedFriend, setSelectedFriend, preparingCall, isCalling, isReceivingCall }) {
 
 
 	return (

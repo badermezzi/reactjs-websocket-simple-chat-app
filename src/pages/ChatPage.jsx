@@ -11,6 +11,8 @@ import { base64Sound } from '../utils/sound';
 import toast from 'react-hot-toast';
 
 function ChatPage() {
+	const remoteStreamRef = useRef(null);
+	const localStreamRef = useRef(null);
 
 	const audioRef = useRef(new Audio(base64Sound));
 
@@ -361,6 +363,10 @@ function ChatPage() {
 
 			if (previousState.remoteStream !== remoteStream) {
 				console.log('WebRTC Update: remoteStream changed:', remoteStream);
+				// Assign the new stream to the video element's srcObject
+				if (remoteStreamRef.current) {
+					remoteStreamRef.current.srcObject = remoteStream;
+				}
 			}
 			if (previousState.connectionState !== connectionState) {
 				console.log('WebRTC Update: connectionState changed:', connectionState);
@@ -449,6 +455,28 @@ function ChatPage() {
 	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, displayedUsers, stopSound]);
 
 
+	async function startVideoCallHandler(receiverId) {
+		calleeIdRef.current = receiverId;
+
+		setPreparingCall(true);
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			const localStream = stream; // Store the stream
+			console.log('Local stream obtained:', localStream);
+
+			// Assign the local stream to the video element
+			if (localStreamRef.current) {
+				localStreamRef.current.srcObject = localStream;
+			}
+
+			// Initiate the call using the obtained stream and receiver ID
+			initiateCall(receiverId, localStream);
+		} catch (err) {
+			console.error('Error accessing media devices.', err);
+			toast.error('Failed to access camera and microphone. Please check permissions.');
+		}
+	};
 
 	async function answerVideoCallHandler() {
 		console.log("Answering call from:", callerId);
@@ -457,6 +485,11 @@ function ChatPage() {
 			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 			const localStream = stream;
 			console.log('Local stream obtained for answering:', localStream);
+
+			// Assign the local stream to the video element
+			if (localStreamRef.current) {
+				localStreamRef.current.srcObject = localStream;
+			}
 
 			// 2. Call the answerCall function from useWebRTC, passing the stream
 			answerCall(localStream);
@@ -475,6 +508,7 @@ function ChatPage() {
 			hangupHandler(); // Assuming hangupHandler is accessible and appropriate here
 		}
 	};
+
 
 	function hangupHandler() {
 		hangUp();
@@ -556,24 +590,19 @@ function ChatPage() {
 					setSelectedFriend={setSelectedFriend}
 					displayedUsers={displayedUsers} // Pass displayedUsers down
 				/>
-				{/* Container for streams place */}
-				<div className='flex flex-col w-90 mb-5 mt-3 '>
-					{/* <div className='flex flex-col w-165 mb-5 mt-3 '> */}
 
-					<div
-						className='h-full bg-gray-900/20 rounded-2xl w-full shadow-black '
-						style={{
-							backgroundImage: `url('/Call.PNG')`,
-							backgroundSize: 'cover',
-							backgroundPosition: 'center',
-							backgroundRepeat: 'no-repeat',
-							opacity: 0.7, // Keeping existing opacity and border
-							border: "#969696 1px solid",
-						}}
-					></div>
+				<div className='relative w-90 bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white flex flex-col flex-shrink-0 rounded-2xl m-4 ml-2 mr-2 mt-2 overflow-hidden'> {/* Added overflow-hidden */}
+					{/* Video element for remote stream */}
+					<video ref={remoteStreamRef} autoPlay playsInline className="w-full h-full object-cover opacity-70"></video>
+					<div className='absolute top-0 right-0 m-2 w-1/5 h-1/5 bg-[#0D1216]/90 border border-gray-500/10 rounded-lg overflow-hidden'> {/* Added overflow-hidden */}
+						{/* Video element for local stream preview */}
+						<video ref={localStreamRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-70"></video>
+					</div>
 				</div>
+				{/* here */}
+
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
-					<ChatAreaHeader isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
+					<ChatAreaHeader startVideoCallHandler={startVideoCallHandler} isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
 					<MessageList
 						messagesPaginationPage={messagesPaginationPage}
 						setMessagesPaginationPage={setMessagesPaginationPage}
