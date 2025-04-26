@@ -598,8 +598,67 @@ function ChatPage() {
 						{/* Video element for local stream preview */}
 						<video ref={localStreamRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-70"></video>
 					</div>
+					{/* Button Container */}
+					<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-5 z-10">
+						{/* Mute Video Button */}
+						<button
+							onClick={toggleVideoMute} // Use the handler from useWebRTC
+							className={`p-2 rounded-full   ${isVideoMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
+							aria-label="Mute/Unmute Video"
+						>
+							{/* SVG for Video Off (Muted) - Placeholder */}
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								className="w-5 h-5" // Added size class
+								width="24" height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<rect x="2" y="6" width="14" height="12" rx="2" />
+								<polygon points="22,8 16,12 22,16" />
+								<line x1="2" y1="2" x2="22" y2="22" />
+							</svg>
+						</button>
+						{/* Hangup Button */}
+						<button
+							onClick={hangupHandler} // Use the existing handler from ChatPage
+							className="p-3 rounded-full bg-red-600/90 hover:bg-red-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0"
+							aria-label="Hang up call"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 rotate-135">
+								<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+							</svg>
+						</button>
+						{/* Mute Audio Button */}
+						<button
+							onClick={toggleAudioMute} // Use the handler from useWebRTC
+							className={`p-2 rounded-full ${isAudioMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
+							aria-label="Mute/Unmute Audio"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								className="w-5 h-5" // Added size class
+								width="24" height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+								<path d="M15 10.586a2 2 0 0 1 0 2.828" />
+								<path d="M17 8.586a4 4 0 0 1 0 6.828" />
+								<line x1="1" y1="1" x2="23" y2="23" />
+							</svg>
+
+						</button>
+					</div>
 				</div>
-				{/* here */}
 
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
 					<ChatAreaHeader startVideoCallHandler={startVideoCallHandler} isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
