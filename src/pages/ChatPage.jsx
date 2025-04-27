@@ -288,6 +288,8 @@ function ChatPage() {
 
 	const socketCallerObjRef = useRef(null);
 
+	const [isCallActive, setIsCallActive] = useState(false);
+	const [localStream, setLocalStream] = useState(null); // State for local stream
 
 	// Function to play the sound
 	const playSound = useCallback(() => {
@@ -388,7 +390,12 @@ function ChatPage() {
 					calleeIdRef.current = null;
 					setIsReceivingCall(false);
 					socketCallerObjRef.current = null;
-					// Potentially set setIsCallActive(false) here
+					setIsCallActive(false); // Reset call active state on disconnect/fail/close
+					// Stop local stream tracks before clearing state
+					localStream?.getTracks().forEach(track => track.stop());
+					setLocalStream(null); // Clear local stream state
+					if (localStreamRef.current) localStreamRef.current.srcObject = null; // Clear video element
+					if (remoteStreamRef.current) remoteStreamRef.current.srcObject = null; // Clear video element
 				}
 			}
 			if (previousState.callState !== callState) {
@@ -411,14 +418,14 @@ function ChatPage() {
 					playSound();
 					// Find caller details
 					socketCallerObjRef.current = displayedUsers.find((user) => (user.id === callerId));
-				} else if (callState === "connected") { // <<<--- ADDED STATE FOR ACTIVE CALL
+				} else if (callState === "connected") {
 					console.log("Call connected!");
 					stopSound(); // Ensure sound stops
 					setIsReceivingCall(false); // Hide incoming bar
 					setIsCalling(false); // Ensure calling indicator is off
 					setPreparingCall(false); // Ensure preparing state is off
+					setIsCallActive(true); // Set call active state
 					console.log("00000000000000000000000000 Call connected!");
-					// Potentially set setIsCallActive(true) here
 				} else if (callState === "idle") {
 					console.log("Call state is idle");
 					// Reset all call-related states thoroughly
@@ -428,7 +435,12 @@ function ChatPage() {
 					calleeIdRef.current = null;
 					setIsReceivingCall(false);
 					socketCallerObjRef.current = null;
-					// Potentially set setIsCallActive(false) here
+					setIsCallActive(false); // Reset call active state when idle
+					// Stop local stream tracks before clearing state
+					localStream?.getTracks().forEach(track => track.stop());
+					setLocalStream(null); // Clear local stream state
+					if (localStreamRef.current) localStreamRef.current.srcObject = null; // Clear video element
+					if (remoteStreamRef.current) remoteStreamRef.current.srcObject = null; // Clear video element
 				}
 			}
 			if (previousState.isAudioMuted !== isAudioMuted) {
@@ -452,7 +464,7 @@ function ChatPage() {
 			isVideoMuted,
 			error,
 		};
-	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, displayedUsers, stopSound]);
+	}, [remoteStream, connectionState, callState, isAudioMuted, isVideoMuted, error, playSound, callerId, displayedUsers, stopSound, localStream]); // Added localStream
 
 
 	async function startVideoCallHandler(receiverId) {
@@ -462,16 +474,17 @@ function ChatPage() {
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-			const localStream = stream; // Store the stream
-			console.log('Local stream obtained:', localStream);
+			// const localStream = stream; // Don't use local const directly for assignment here
+			console.log('Local stream obtained:', stream);
+			setLocalStream(stream); // Set state instead of direct assignment
 
-			// Assign the local stream to the video element
-			if (localStreamRef.current) {
-				localStreamRef.current.srcObject = localStream;
-			}
+			// Assign the local stream to the video element - MOVED TO useEffect inside isCallActive block
+			// if (localStreamRef.current) {
+			// 	localStreamRef.current.srcObject = stream;
+			// }
 
 			// Initiate the call using the obtained stream and receiver ID
-			initiateCall(receiverId, localStream);
+			initiateCall(receiverId, stream);
 		} catch (err) {
 			console.error('Error accessing media devices.', err);
 			toast.error('Failed to access camera and microphone. Please check permissions.');
@@ -483,23 +496,24 @@ function ChatPage() {
 		try {
 			// 1. Get local stream first
 			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-			const localStream = stream;
-			console.log('Local stream obtained for answering:', localStream);
+			// const localStream = stream; // Don't use local const directly for assignment here
+			console.log('Local stream obtained for answering:', stream);
+			setLocalStream(stream); // Set state instead of direct assignment
 
-			// Assign the local stream to the video element
-			if (localStreamRef.current) {
-				localStreamRef.current.srcObject = localStream;
-			}
+			// Assign the local stream to the video element - MOVED TO useEffect inside isCallActive block
+			// if (localStreamRef.current) {
+			// 	localStreamRef.current.srcObject = stream;
+			// }
 
 			// 2. Call the answerCall function from useWebRTC, passing the stream
-			answerCall(localStream);
+			answerCall(stream);
 
 			// 3. Stop the ringing sound
 			stopSound();
 
 			// 4. Update state to reflect the call is active (not just receiving)
 			setIsReceivingCall(false);
-			// TODO: Consider adding setIsCallActive(true) or similar if needed for UI
+			// setIsCallActive is handled by the 'connected' callState transition
 
 		} catch (err) {
 			console.error('Error accessing media devices for answering.', err);
@@ -516,6 +530,12 @@ function ChatPage() {
 		setIsCalling(false);
 		// Stop ringing sound
 		stopSound();
+		setIsCallActive(false); // Reset call active state on hangup
+		// Stop local stream tracks before clearing state
+		localStream?.getTracks().forEach(track => track.stop());
+		setLocalStream(null); // Clear local stream state
+		if (localStreamRef.current) localStreamRef.current.srcObject = null; // Clear video element
+		if (remoteStreamRef.current) remoteStreamRef.current.srcObject = null; // Clear video element
 
 
 	}
@@ -591,74 +611,82 @@ function ChatPage() {
 					displayedUsers={displayedUsers} // Pass displayedUsers down
 				/>
 
-				<div className='relative w-90 bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white flex flex-col flex-shrink-0 rounded-2xl m-4 ml-2 mr-2 mt-2 overflow-hidden'> {/* Added overflow-hidden */}
-					{/* Video element for remote stream */}
-					<video ref={remoteStreamRef} autoPlay playsInline className="w-full h-full object-cover opacity-70"></video>
-					<div className='absolute top-0 right-0 m-2 w-1/5 h-1/5 bg-[#0D1216]/90 border border-gray-500/10 rounded-lg overflow-hidden'> {/* Added overflow-hidden */}
-						{/* Video element for local stream preview */}
-						<video ref={localStreamRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-70"></video>
-					</div>
-					{/* Button Container */}
-					<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-5 z-10">
-						{/* Mute Video Button */}
-						<button
-							onClick={toggleVideoMute} // Use the handler from useWebRTC
-							className={`p-2 rounded-full   ${isVideoMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
-							aria-label="Mute/Unmute Video"
-						>
-							{/* SVG for Video Off (Muted) - Placeholder */}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								className="w-5 h-5" // Added size class
-								width="24" height="24"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<rect x="2" y="6" width="14" height="12" rx="2" />
-								<polygon points="22,8 16,12 22,16" />
-								<line x1="2" y1="2" x2="22" y2="22" />
-							</svg>
-						</button>
-						{/* Hangup Button */}
-						<button
-							onClick={hangupHandler} // Use the existing handler from ChatPage
-							className="p-3 rounded-full bg-red-600/90 hover:bg-red-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0"
-							aria-label="Hang up call"
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 rotate-135">
-								<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
-							</svg>
-						</button>
-						{/* Mute Audio Button */}
-						<button
-							onClick={toggleAudioMute} // Use the handler from useWebRTC
-							className={`p-2 rounded-full ${isAudioMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
-							aria-label="Mute/Unmute Audio"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								className="w-5 h-5" // Added size class
-								width="24" height="24"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-								<path d="M15 10.586a2 2 0 0 1 0 2.828" />
-								<path d="M17 8.586a4 4 0 0 1 0 6.828" />
-								<line x1="1" y1="1" x2="23" y2="23" />
-							</svg>
+				{/* Conditionally render video call UI */}
+				{isCallActive && (
+					<div className='relative w-90 bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white flex flex-col flex-shrink-0 rounded-2xl m-4 ml-2 mr-2 mt-2 overflow-hidden'> {/* Added overflow-hidden */}
+						{/* Video element for remote stream */}
+						<video ref={remoteStreamRef} autoPlay playsInline className="w-full h-full object-cover opacity-70"></video>
+						<div className='absolute top-0 right-0 m-2 w-1/5 h-1/5 bg-[#0D1216]/90 border border-gray-500/10 rounded-lg overflow-hidden'> {/* Added overflow-hidden */}
+							{/* Video element for local stream preview */}
+							<video ref={localStreamRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-70"></video>
+						</div>
 
-						</button>
+						{/* Effects to assign streams when UI is active */}
+						<StreamAssigner localStream={localStream} remoteStream={remoteStream} localStreamRef={localStreamRef} remoteStreamRef={remoteStreamRef} />
+
+
+						{/* Button Container */}
+						<div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-5 z-10">
+							{/* Mute Video Button */}
+							<button
+								onClick={toggleVideoMute} // Use the handler from useWebRTC
+								className={`p-2 rounded-full   ${isVideoMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
+								aria-label="Mute/Unmute Video"
+							>
+								{/* SVG for Video Off (Muted) - Placeholder */}
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									className="w-5 h-5" // Added size class
+									width="24" height="24"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<rect x="2" y="6" width="14" height="12" rx="2" />
+									<polygon points="22,8 16,12 22,16" />
+									<line x1="2" y1="2" x2="22" y2="22" />
+								</svg>
+							</button>
+							{/* Hangup Button */}
+							<button
+								onClick={hangupHandler} // Use the existing handler from ChatPage
+								className="p-3 rounded-full bg-red-600/90 hover:bg-red-600 border border-gray-500/20 text-white cursor-pointer flex-shrink-0"
+								aria-label="Hang up call"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 rotate-135">
+									<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+								</svg>
+							</button>
+							{/* Mute Audio Button */}
+							<button
+								onClick={toggleAudioMute} // Use the handler from useWebRTC
+								className={`p-2 rounded-full ${isAudioMuted ? "bg-gray-500" : "bg-gray-600/30"} hover:bg-gray-500/70 border border-gray-500/20 text-white cursor-pointer`}
+								aria-label="Mute/Unmute Audio"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									className="w-5 h-5" // Added size class
+									width="24" height="24"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+									<path d="M15 10.586a2 2 0 0 1 0 2.828" />
+									<path d="M17 8.586a4 4 0 0 1 0 6.828" />
+									<line x1="1" y1="1" x2="23" y2="23" />
+								</svg>
+
+							</button>
+						</div>
 					</div>
-				</div>
+				)}
 
 				{selectedFriend ? <div className='relative flex flex-col flex-grow bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white rounded-2xl m-4 ml-2 mt-2 overflow-hidden'>
 					<ChatAreaHeader startVideoCallHandler={startVideoCallHandler} isReceivingCall={isReceivingCall} hangupHandler={hangupHandler} calleeIdRef={calleeIdRef} hangUp={hangUp} preparingCall={preparingCall} setPreparingCall={setPreparingCall} isCalling={isCalling} setIsCalling={setIsCalling} initiateCall={initiateCall} ws={ws} senderId={currentUserId} selectedFriend={selectedFriend} setSelectedFriend={setSelectedFriend} />
@@ -709,4 +737,42 @@ function ChatPage() {
 	);
 };
 
+// Helper component to manage stream assignment within the conditional block
+function StreamAssigner({ localStream, remoteStream, localStreamRef, remoteStreamRef }) {
+	// Effect for local stream
+	useEffect(() => {
+		const localVideoElement = localStreamRef.current; // Capture ref value
+		if (localVideoElement && localStream) {
+			console.log("Assigning local stream to video element");
+			localVideoElement.srcObject = localStream;
+		}
+		// Cleanup: Remove stream when component unmounts or stream/ref changes
+		return () => {
+			// Use the captured value in cleanup
+			if (localVideoElement && localVideoElement.srcObject === localStream) {
+				console.log("Cleaning up local stream from video element");
+				localVideoElement.srcObject = null;
+			}
+		};
+	}, [localStream, localStreamRef]); // Rerun if stream or ref changes
+
+	// Effect for remote stream
+	useEffect(() => {
+		const remoteVideoElement = remoteStreamRef.current; // Capture ref value
+		if (remoteVideoElement && remoteStream) {
+			console.log("Assigning remote stream to video element");
+			remoteVideoElement.srcObject = remoteStream;
+		}
+		// Cleanup: Remove stream when component unmounts or stream/ref changes
+		return () => {
+			// Use the captured value in cleanup
+			if (remoteVideoElement && remoteVideoElement.srcObject === remoteStream) {
+				console.log("Cleaning up remote stream from video element");
+				remoteVideoElement.srcObject = null;
+			}
+		};
+	}, [remoteStream, remoteStreamRef]); // Rerun if stream or ref changes
+
+	return null; // This component renders nothing itself
+}
 export default ChatPage;
