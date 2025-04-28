@@ -407,7 +407,7 @@ function ChatPage() {
 					setIsCalling(true);
 					// Optional: Start outgoing call sound here if desired
 					// console.log('Attempting to play outgoing call sound');
-					// playSound(); // Or a different sound
+					playSound(); // Or a different sound
 				} else if (callState === "receiving") {
 					console.log("receiving...");
 					setIsReceivingCall(true);

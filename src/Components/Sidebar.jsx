@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFriend, setSelectedFriend, setMessages, setMessagesPaginationPage, displayedUsers }) { // Added displayedUsers prop
-
+	const [searchTerm, setSearchTerm] = useState('');
 
 	function handleOnSelectFriend(user) {
 
@@ -14,6 +14,10 @@ function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFr
 		setSelectedFriend(user);
 	}
 
+	const filteredUsers = displayedUsers.filter(user =>
+		user.username.toLowerCase().includes(searchTerm.toLowerCase())
+	);
+
 	return (
 		<div className='w-75 bg-[#0D1216]/70 border border-gray-500/10 drop-shadow-black text-white p-5 flex flex-col flex-shrink-0 rounded-2xl m-4 mr-2 mt-2'> {/* Added flex flex-col */}
 			{/* Title */}
@@ -25,6 +29,8 @@ function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFr
 					type="text"
 					placeholder="Search"
 					className="w-full bg-gray-700/30 hover:bg-gray-800 focus:bg-gray-800 border border-gray-600/50 rounded-md py-2 px-3 pl-8 text-sm focus:outline-none placeholder-gray-400 shadow"
+					value={searchTerm}
+					onChange={(e) => setSearchTerm(e.target.value)}
 				/>
 				{/* Placeholder for search icon */}
 				<svg className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,8 +40,8 @@ function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFr
 
 			{/* Friends List (Placeholder) */}
 			<ul className="flex-grow overflow-y-auto"> {/* Allow list to scroll */}
-				{displayedUsers.length > 0 ? (
-					displayedUsers.map((user) => (
+				{filteredUsers.length > 0 ? (
+					filteredUsers.map((user) => (
 						<li onClick={() => handleOnSelectFriend(user)} key={user.id} className="mb-2 my-0">
 							{/* Friend Item Structure */}
 							<div className={`flex items-center p-2 rounded-xl cursor-pointer ${isCalling && user?.id === calleeIdRef.current || isReceivingCall && user?.id === callerId ? 'bg-green-500/10 shadow border border-gray-500/10' : user.id === selectedFriend?.id ? 'bg-gray-700/80 shadow border border-gray-500/10' : 'hover:bg-gray-700/50'}`}>
@@ -65,7 +71,7 @@ function Sidebar({ callerId, isReceivingCall, calleeIdRef, isCalling, selectedFr
 						</li>
 					))
 				) : (
-					<li className="text-gray-400 text-sm text-center py-4">No users available.</li>
+					<li className="text-gray-400 text-sm text-center py-4">No users match your search or are available.</li>
 				)}
 			</ul>
 		</div >
