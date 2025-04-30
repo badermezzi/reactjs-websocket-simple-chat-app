@@ -20,7 +20,7 @@ function ChatAreaHeader({ startVideoCallHandler, hangupHandler, calleeIdRef, sel
 			</div>
 
 			{/* Right Side: Call Buttons */}
-			<div className="flex items-center space-x-3"> {/* Buttons group */}
+			<div className="flex items-center space-x-3">
 
 				{!isCalling && !preparingCall && !isReceivingCall &&
 					<>
