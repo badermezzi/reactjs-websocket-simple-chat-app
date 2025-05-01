@@ -81,6 +81,8 @@ function ChatPage() {
 	// Effect to fetch initial user lists and ringing audio
 	useEffect(() => {
 		const fetchUsers = async () => {
+			// should change backend to fetch all Online and Offline users in one time
+
 			// Fetch Online Users
 			try {
 				const onlineResponse = await fetch('http://localhost:8080/users/online');
