@@ -59,6 +59,8 @@ function MessageList({ updatingSelectedFriendStatusRef, isTyping, messageContain
 					method: 'GET',
 					headers: {
 						'Authorization': `Bearer ${token}`,
+						'ngrok-skip-browser-warning': 'true'
+
 					},
 				});
 

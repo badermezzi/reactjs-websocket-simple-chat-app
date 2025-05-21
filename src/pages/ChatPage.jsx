@@ -85,7 +85,11 @@ function ChatPage() {
 
 			// Fetch Online Users
 			try {
-				const onlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/online');
+				const onlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/online', {
+					headers: {
+						'ngrok-skip-browser-warning': 'true'
+					}
+				});
 				if (onlineResponse.ok) {
 					const onlineData = await onlineResponse.json();
 					setOnlineUsers(onlineData.online_users || []);
@@ -99,7 +103,11 @@ function ChatPage() {
 
 			// Fetch Offline Users
 			try {
-				const offlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/offline');
+				const offlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/offline', {
+					headers: {
+						'ngrok-skip-browser-warning': 'true'
+					}
+				});
 				if (offlineResponse.ok) {
 					const offlineData = await offlineResponse.json();
 					setOfflineUsers(offlineData.offline_users || []);
