@@ -172,7 +172,7 @@ function ChatPage() {
 		}
 
 		// Replace with your actual WebSocket server address
-		const wsUrl = `wss://walleye-ruling-crawdad.ngrok-free.app /ws?token=${token}`; // Assuming ws, adjust if wss
+		const wsUrl = `wss://walleye-ruling-crawdad.ngrok-free.app/ws?token=${token}`; // Assuming ws, adjust if wss
 
 		ws.current = new WebSocket(wsUrl);
 
