@@ -85,7 +85,7 @@ function ChatPage() {
 
 			// Fetch Online Users
 			try {
-				const onlineResponse = await fetch('http://localhost:8080/users/online');
+				const onlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/online');
 				if (onlineResponse.ok) {
 					const onlineData = await onlineResponse.json();
 					setOnlineUsers(onlineData.online_users || []);
@@ -99,7 +99,7 @@ function ChatPage() {
 
 			// Fetch Offline Users
 			try {
-				const offlineResponse = await fetch('http://localhost:8080/users/offline');
+				const offlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/offline');
 				if (offlineResponse.ok) {
 					const offlineData = await offlineResponse.json();
 					setOfflineUsers(offlineData.offline_users || []);
@@ -409,7 +409,7 @@ function ChatPage() {
 					setIsCalling(true);
 					// Optional: Start outgoing call sound here if desired
 					// console.log('Attempting to play outgoing call sound');
-					playSound(); // Or a different sound
+					//playSound(); // Or a different sound
 				} else if (callState === "receiving") {
 					console.log("receiving...");
 					setIsReceivingCall(true);
