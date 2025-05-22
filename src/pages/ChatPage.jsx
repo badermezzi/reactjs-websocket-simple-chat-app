@@ -85,11 +85,7 @@ function ChatPage() {
 
 			// Fetch Online Users
 			try {
-				const onlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/online', {
-					headers: {
-						'ngrok-skip-browser-warning': 'true'
-					}
-				});
+				const onlineResponse = await fetch('http://localhost:8080/users/online');
 				if (onlineResponse.ok) {
 					const onlineData = await onlineResponse.json();
 					setOnlineUsers(onlineData.online_users || []);
@@ -103,11 +99,7 @@ function ChatPage() {
 
 			// Fetch Offline Users
 			try {
-				const offlineResponse = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users/offline', {
-					headers: {
-						'ngrok-skip-browser-warning': 'true'
-					}
-				});
+				const offlineResponse = await fetch('http://localhost:8080/users/offline');
 				if (offlineResponse.ok) {
 					const offlineData = await offlineResponse.json();
 					setOfflineUsers(offlineData.offline_users || []);
@@ -172,7 +164,7 @@ function ChatPage() {
 		}
 
 		// Replace with your actual WebSocket server address
-		const wsUrl = `wss://walleye-ruling-crawdad.ngrok-free.app/ws?token=${token}`; // Assuming ws, adjust if wss
+		const wsUrl = `ws://localhost:8080/ws?token=${token}`; // Assuming ws, adjust if wss
 
 		ws.current = new WebSocket(wsUrl);
 

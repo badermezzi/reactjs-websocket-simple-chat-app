@@ -42,11 +42,10 @@ function AuthPage() {
 		if (isSignUp) {
 			// --- Sign Up Logic ---
 			try {
-				const response = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/users', {
+				const response = await fetch('http://localhost:8080/users', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'ngrok-skip-browser-warning': 'true'
 
 					},
 					body: JSON.stringify({ username, password }),
@@ -71,11 +70,10 @@ function AuthPage() {
 		} else {
 			// --- Login Logic ---
 			try {
-				const response = await fetch('https://walleye-ruling-crawdad.ngrok-free.app/login', {
+				const response = await fetch('http://localhost:8080/login', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'ngrok-skip-browser-warning': 'true'
 
 					},
 					body: JSON.stringify({ username, password }),

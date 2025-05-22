@@ -55,11 +55,10 @@ function MessageList({ updatingSelectedFriendStatusRef, isTyping, messageContain
 			}
 
 			try {
-				const response = await fetch(`https://walleye-ruling-crawdad.ngrok-free.app/messages?partner_id=${selectedFriend?.id}&page=${messagesPaginationPage}&limit=10`, { // Added page=1
+				const response = await fetch(`http://localhost:8080/messages?partner_id=${selectedFriend?.id}&page=${messagesPaginationPage}&limit=10`, { // Added page=1
 					method: 'GET',
 					headers: {
-						'Authorization': `Bearer ${token}`,
-						'ngrok-skip-browser-warning': 'true'
+						'Authorization': `Bearer ${token}`
 
 					},
 				});

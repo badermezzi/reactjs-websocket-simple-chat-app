@@ -4,7 +4,7 @@ This document outlines the API endpoints and WebSocket communication for the cha
 
 ## HTTP Endpoints
 
-Base URL: `https://walleye-ruling-crawdad.ngrok-free.app` (or configured port)
+Base URL: `http://localhost:8080` (or configured port)
 
 ### 1. Create User
 
